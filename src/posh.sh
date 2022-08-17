@@ -133,6 +133,7 @@ upgrade(){
   done
 
   __run curl -L "${_POSH_URL}" -o "${_POSH_BIN_PATH}/${_BIN_FILE}"
+  __run chmod +x "${_POSH_BIN_PATH}/${_BIN_FILE}"
   __run curl -L "${_POSH_THEME_URL}" -o "${_CONFIG_DIR}/${_POSH_THEME}"
   __run curl -L ${_POSH_RC_URL} -o "${_POSH_RC_PATH}"
   __run sed -i "s|::OMP::|${_POSH_BIN_PATH}/${_BIN_FILE}|g; s|::CONFIG::|${_CONFIG_DIR}/${_POSH_THEME}|g" "${_POSH_RC_PATH}"
