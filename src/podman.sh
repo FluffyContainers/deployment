@@ -218,7 +218,7 @@ install() {
   __echo "Detected OS: ${OS_TYPE} ${OS_VERSION}"
   
   echo "Podman deployment script. "
-  echo -en "You're about to deploy podman on current system "
+  echo -en "You're about to deploy podman on current system. "
   ! __ask "Agree to continue" && return 1
   ! check_podman_deployment && exit 1
   
