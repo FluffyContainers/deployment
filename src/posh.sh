@@ -105,11 +105,11 @@ _POSH_RELEASE_URL="https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releas
 _POSH_RC_URL="https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/src/shell/scripts/omp.bash"
 _POSH_RC_PATH="${HOME}/.omprc"
 _POSH_LATEST_VERSION=$(curl ${_POSH_RELEASE_URL} 2>/dev/null|grep "tag_name"|cut -d ":" -f 2|cut -d \" -f 2)
-_PLATFORM_TYPE="amd64"
+_PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
 _POSH_URL="https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/${_POSH_LATEST_VERSION}/posh-linux-${_PLATFORM_TYPE}"
 _INSTALL_HOOK_TARGET="${HOME}/.bashrc"
 
-[[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
+
 
 
 info_header(){
@@ -143,7 +143,7 @@ upgrade(){
 install_new(){
   upgrade
 
-  cat >> _INSTALL_HOOK_TARGET <<EOF
+  cat >> "${_INSTALL_HOOK_TARGET}" <<EOF
 # hook added by FluffyContainers deployment scripts
  [[ -f "${_POSH_RC_PATH}"]] && . ${_POSH_RC_PATH} || true
 EOF
