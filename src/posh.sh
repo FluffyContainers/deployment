@@ -161,7 +161,7 @@ install(){
  local _current_version="${_COLOR[ERROR]}not installed${_COLOR[RESET]}"
 
  if [[ -f "${_POSH_BIN_PATH}/${_BIN_FILE}" ]]; then
-   _current_version=$("${_POSH_BIN_PATH}/${_BIN_FILE}" -version)
+   _current_version=$("${_POSH_BIN_PATH}/${_BIN_FILE}" --version)
    __vercomp "${_POSH_LATEST_VERSION:1}" "${_current_version}"
    if [[ "0 1" =~ (^|[[:space:]])$?($|[[:space:]]) ]]; then
      info_header "${_current_version}"
