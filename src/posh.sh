@@ -145,8 +145,11 @@ install_new(){
   upgrade
 
   cat >> "${_INSTALL_HOOK_TARGET}" <<EOF
+
 # hook added by FluffyContainers deployment scripts
- [[ -f "${_POSH_RC_PATH}"]] && . ${_POSH_RC_PATH} || true
+if [[ -f "${_POSH_RC_PATH}" ]]; then
+ . ${_POSH_RC_PATH}
+fi
 EOF
 }
 
