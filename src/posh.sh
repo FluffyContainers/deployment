@@ -47,25 +47,28 @@ __command(){
     [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[RESET]}"
     return ${n}
   else
-   echo "${title}..."
+    echo "${title}..."
     "$@"
     return $?
   fi
 }
 
 __run(){
- echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
- "$@" 1>/dev/null 2>/dev/null
- local n=$?
- [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
- return ${n}
-}
+  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
+  "$@" 1>/dev/null 2>/dev/null
+  local n=$?
+  [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
+  return ${n}
+  }
 
-__echo() {
- local _lvl="INFO"
- [[ "${1^^}" == "INFO" ]] || [[ "${1^^}" == "ERROR" ]] || [[ "${1^^}" == "WARN" ]] && { local _lvl=${1^^}; shift; }
- 
- echo -e "${_COLOR[${_lvl}]}[${_lvl}]${_COLOR[RESET]} $*"
+  __echo() {
+  local _lvl="INFO"
+  local _new_line=""
+
+  [[ "${1^^}" == "-N" ]] && { local _new_line="n"; shift; }
+  [[ "${1^^}" == "INFO" ]] || [[ "${1^^}" == "ERROR" ]] || [[ "${1^^}" == "WARN" ]] && { local _lvl=${1^^}; shift; }
+  
+  echo -${_new_line}e "${_COLOR[${_lvl}]}[${_lvl}]${_COLOR[RESET]} $*"
 }
 
 __ask() {
@@ -94,12 +97,31 @@ __vercomp () {
     return 0
 }
 
+__download(){
+  [[ "${1^^}" == "-L" ]] && { local _follow_link="-L"; shift; } || local _follow_link=""
+  local _url="$1"
+  local _file="${_url##*/}"
+  [[ -z $2 ]] && local _destination="./" || local _destination="$2"
+
+  __echo "Downloading file ${_file}: "
+  curl -f "${_follow_link}" --progress-bar "${_url}" -o "${_destination}/${_file}" 2>&1
+  local _ret=$?
+
+  [[ ${_ret} -eq 0 ]] && {
+    tput cuu1; echo -ne "\033[0K\r"; tput cuu1
+    __echo "Downloading file ${_file}: [${_COLOR[OK]}OK${_COLOR[RESET]}]"
+  } || {
+    tput cuu1; echo -ne "\033[0K\r"; tput cuu1;echo -ne "\033[0K\r"; tput cuu1;
+    __echo "Downloading file ${_file}: [${_COLOR[ERROR]}ERROR ${_ret}${_COLOR[RESET]}]"
+  }
+}
+
 # ===========================================================================
 
 _BIN_FILE="oh-my-posh"
 _POSH_BIN_PATH="${HOME}/.local/bin"
 _POSH_THEME="posh_theme.json"
-_POSH_THEME_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/${_POSH_THEME}"
+_POSH_THEME_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/posh/${_POSH_THEME}"
 _CONFIG_DIR="${HOME}/.config/posh"
 _POSH_RELEASE_URL="https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest"
 _POSH_RC_URL="https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/src/shell/scripts/omp.bash"
@@ -132,13 +154,11 @@ upgrade(){
     [[ ! -d "${d}" ]] && __run mkdir -p "${d}"
   done
 
-  __run curl -L "${_POSH_URL}" -o "${_POSH_BIN_PATH}/${_BIN_FILE}"
+  __download -L "${_POSH_URL}" "${_POSH_BIN_PATH}/${_BIN_FILE}"
   __run chmod +x "${_POSH_BIN_PATH}/${_BIN_FILE}"
-  __run curl -L "${_POSH_THEME_URL}" -o "${_CONFIG_DIR}/${_POSH_THEME}"
-  __run curl -L ${_POSH_RC_URL} -o "${_POSH_RC_PATH}"
-  __run sed -i "s|::OMP::|${_POSH_BIN_PATH}/${_BIN_FILE}|g; s|::CONFIG::|${_CONFIG_DIR}/${_POSH_THEME}|g" "${_POSH_RC_PATH}"
-
-  
+  __download -L "${_POSH_THEME_URL}" "${_CONFIG_DIR}/${_POSH_THEME}"
+  __download -L "${_POSH_RC_URL}" "${_POSH_RC_PATH}"
+  __run sed -i "s|::OMP::|${_POSH_BIN_PATH}/${_BIN_FILE}|g; s|::CONFIG::|${_CONFIG_DIR}/${_POSH_THEME}|g" "${_POSH_RC_PATH}" 
 }
 
 install_new(){
@@ -148,7 +168,7 @@ install_new(){
 
 # hook added by FluffyContainers deployment scripts
 if [[ -f "${_POSH_RC_PATH}" ]]; then
- . ${_POSH_RC_PATH}
+  . ${_POSH_RC_PATH}
 fi
 EOF
 }
@@ -158,25 +178,25 @@ install(){
   echo -en "${_COLOR[ERROR]}You're about to deploy powerline on current system (user). ${_COLOR[RESET]}"
   ! __ask "Agree to continue" && return 1
 
- local _current_version="${_COLOR[ERROR]}not installed${_COLOR[RESET]}"
+  local _current_version="${_COLOR[ERROR]}not installed${_COLOR[RESET]}"
 
- if [[ -f "${_POSH_BIN_PATH}/${_BIN_FILE}" ]]; then
-   _current_version=$("${_POSH_BIN_PATH}/${_BIN_FILE}" --version)
-   __vercomp "${_POSH_LATEST_VERSION:1}" "${_current_version}"
-   if [[ "0 1" =~ (^|[[:space:]])$?($|[[:space:]]) ]]; then
-     info_header "${_current_version}"
-     __echo "Local powerline version \"${_COLOR[WARN]}${_current_version}${_COLOR[RESET]}\" is older than available \"${_COLOR[OK]}${_POSH_LATEST_VERSION:1}${_COLOR[RESET]}\""
-     ! __ask "Upgrade local version to most recent one? " && return 1
-     
-     upgrade
-   fi
- else 
-  info_header "${_current_version}"
-   ! __ask "Pursuit with installation? " && return 1
-  install_new
- fi
+  if [[ -f "${_POSH_BIN_PATH}/${_BIN_FILE}" ]]; then
+    _current_version=$("${_POSH_BIN_PATH}/${_BIN_FILE}" --version)
+    __vercomp "${_POSH_LATEST_VERSION:1}" "${_current_version}"
+    if [[ "0 1" =~ (^|[[:space:]])$?($|[[:space:]]) ]]; then
+      info_header "${_current_version}"
+      __echo "Local powerline version \"${_COLOR[WARN]}${_current_version}${_COLOR[RESET]}\" is older than available \"${_COLOR[OK]}${_POSH_LATEST_VERSION:1}${_COLOR[RESET]}\""
+      ! __ask "Upgrade local version to most recent one? " && return 1
+      
+      upgrade
+    fi
+  else 
+    info_header "${_current_version}"
+    ! __ask "Pursuit with installation? " && return 1
+    install_new
+  fi
 
- __echo "Installation complete, reload console or execute: source \"${_POSH_RC_PATH}\""
+  __echo "Installation complete, reload console or execute: source \"${_POSH_RC_PATH}\""
 }
 
 install

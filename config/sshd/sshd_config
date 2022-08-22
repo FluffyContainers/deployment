@@ -1,0 +1,59 @@
+Port [PORT]
+AddressFamily any
+ListenAddress [LISTEN]
+Protocol 2
+
+AuthorizedKeysFile      .ssh/authorized_keys
+
+SyslogFacility AUTHPRIV
+
+LoginGraceTime 40
+
+MaxAuthTries 2
+
+UsePAM yes
+PermitRootLogin no
+KerberosAuthentication no
+GSSAPIAuthentication no
+UseDNS no
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+GatewayPorts no
+PermitTunnel no
+
+ClientAliveInterval 60
+ClientAliveCountMax 3
+
+# ToDo: add here your banner
+#Banner /usr/srv/_conf/system/sshd/banner
+
+# Accept locale-related environment variables
+AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+
+ChallengeResponseAuthentication yes
+KbdInteractiveAuthentication no
+PasswordAuthentication no
+PermitEmptyPasswords no
+KbdInteractiveAuthentication
+AuthenticationMethods publickey
+
+# override default of no subsystems
+Subsystem       sftp    [SUBSYS]
+
+Match Group [2FA-GROUP]
+  PasswordAuthentication yes
+  KbdInteractiveAuthentication yes
+  AuthenticationMethods keyboard-interactive
+Match all
+
+DenyGroups *
+Match group [SSH-GROUP]
+    DenyGroups nobody
+    AllowGroups [SSH-GROUP]
+Match all
