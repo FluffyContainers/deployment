@@ -44,12 +44,12 @@ KbdInteractiveAuthentication
 AuthenticationMethods publickey
 
 # override default of no subsystems
-Subsystem       sftp    [SUBSYS]
+Subsystem  sftp    [SUBSYS]
 
 Match Group [2FA-GROUP]
-  PasswordAuthentication yes
-  KbdInteractiveAuthentication yes
-  AuthenticationMethods keyboard-interactive
+    PasswordAuthentication yes
+    KbdInteractiveAuthentication yes
+    AuthenticationMethods keyboard-interactive
 Match all
 
 DenyGroups *

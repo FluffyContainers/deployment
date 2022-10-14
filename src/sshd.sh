@@ -17,6 +17,8 @@
 
 # shellcheck disable=SC2155,SC2015
 
+_2FA_GROUP="gauth"
+_SSH_GROUP="ssh-users"
 
 # =====================
 # 
@@ -30,6 +32,10 @@ declare -A _COLOR=(
   [OK]="\033[38;05;40m"
   [GRAY]="\033[38;05;245m"
   [RESET]="\033[m"
+
+  # menu colors
+  [UNSELECTED]="\033[38;05;188m"
+  [SELECTED]="\033[38;05;232;48;05;188m"
 )
 
 
@@ -101,10 +107,125 @@ __download(){
   return ${_ret}
 }
 
+# ===================== BASH MENU
+
+moveCursor() {
+    echo -ne "\033[$(($2+1));$1f"  # or tput cup "$2" "$1"
+}
+
+
+getCurrentPos(){
+    local _col; local _row
+    # shellcheck disable=SC2162
+    IFS=';' read -sdR -p $'\E[6n' _row _col
+    echo "${_col} ${_row#*[}"
+}
+
+readKey(){
+    read -rsN 1 _key
+    printf %d "'${_key}"   # %x for hex
+}
+
+redrawMenuItems() { 
+    local -n _menuItems=$1
+    local startPos=$2; local pos=$3; local oldPos=$4
+    local menuLen=$((${#_menuItems[@]} + 2))
+    local menuOldPosY=$((startPos - (menuLen - oldPos)))
+    local menuNewPosY=$((startPos - (menuLen - pos)))
+    
+    moveCursor "0" "${menuOldPosY}"
+    echo -ne "\t${_COLOR[UNSELECTED]}${oldPos}. ${_menuItems[${oldPos}]}${_COLOR[RESET]}" 
+
+    moveCursor "0" "${menuNewPosY}"
+    echo -ne "\t${_COLOR[SELECTED]}${pos}. ${_menuItems[${pos}]}${_COLOR[RESET]}"
+
+    moveCursor "0" "${startPos}"
+}
+
+drawMenu() {
+    local -n _menuItems=$1
+    local menuPosition=$2
+    local menuTitle="$3"
+
+    local __line=$(printf '%*s' "${#menuTitle}" | tr ' ' "=")
+    echo -ne "
+\t${_COLOR[UNSELECTED]}${__line}${_COLOR[RESET]}
+\t${_COLOR[UNSELECTED]} $menuTitle ${_COLOR[RESET]}
+\t${_COLOR[UNSELECTED]}${__line}${_COLOR[RESET]}
+    "
+    echo
+    for i in $(seq 0 ${#_menuItems[@]}); do
+        [[ $i -ne ${menuPosition} ]] && local __color="UNSELECTED" || local __color="SELECTED"
+        [[ -n "${_menuItems[${i}]}" ]] &&  echo -e "\t${_COLOR[${__color}]}$i. ${_menuItems[${i}]}${_COLOR[RESET]}" 
+    done
+    echo 
+}
+
+
+menu(){
+    IFS="," read -ra menuItems <<< "$1"
+    local menuTitle="$2"
+
+    local keyCode=(0)
+    local pos=0
+    local oldPos=0
+
+    drawMenu "menuItems" "${pos}" "${menuTitle}"
+
+    local startPosStr=$(getCurrentPos);
+    local startPos="${startPosStr#* }"
+
+    while [[ ${keyCode[0]} -ne 10 ]]; do
+        local keyCode=("$(readKey)") # byte 1
+        if [[ ${keyCode[0]} -eq 27 ]]; then # escape character 
+            local keyCode+=("$(readKey)") # byte 2
+            if [[ ${keyCode[-1]} -ne 27 ]]; then # checking if user pressed actual
+                local keyCode+=("$(readKey)")  # byte 3
+                
+                if [[ "51 50 48 52 53 54" =~ (^|[[:space:]])"${keyCode[2]}"($|[[:space:]]) ]]; then
+                    while [[ ${keyCode[-1]} -ne 126 ]]; do
+                        local keyCode+=("$(readKey)")    
+                    done
+                fi
+                if [[ "49" =~ (^|[[:space:]])"${keyCode[2]}"($|[[:space:]]) ]]; then
+                    local keyCode+=("$(readKey)")  # byte 4
+                    [[ ${keyCode[-1]} -ne 126 ]] && local keyCode+=("$(readKey)") # byte 5
+                    [[ ${keyCode[-1]} -eq 59 ]] && local keyCode+=("$(readKey)") # byte 5 check
+                    [[ ${keyCode[-1]} -ne 126 ]] && local keyCode+=("$(readKey)")
+                fi
+            fi
+        fi 
+
+        local oldPos=${pos}
+        case "${keyCode[*]}" in 
+            "27 91 65")  local pos=$((pos - 1));;  # up
+            "27 91 66")  local pos=$((pos + 1));;  # down
+            "27 91 53 126") local pos=$((pos - 2));; # pgup
+            "27 91 54 126") local pos=$((pos + 2));; # pgdn
+            "27 91 72") local pos=0;; # home
+            "27 91 70") local pos=$((${#menuItems[*]} - 1));; # end
+            "27 27") return 255; # 2 presses of ESC
+        esac
+
+        [[ ${pos} -lt 0 ]] && local pos=0
+        [[ ${pos} -ge ${#menuItems[*]} ]] && local pos=$((${#menuItems[*]} - 1))
+
+        redrawMenuItems "menuItems" "${startPos}" "${pos}" "${oldPos}"  
+
+    done
+
+    return "${pos}"
+}
+# =====================
+
 __SSHD_DOWLOAD_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/sshd"
 __SSHD_CONFIG="sshd_config"
 __SSHD_REPORT="login_report.sh"
 
+
+# user_wizzard(){
+  
+# }
 
 install(){
   local OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
@@ -130,31 +251,63 @@ install(){
 
   local _listen="0.0.0.0"
   local _port="2222"
-  local _2fa_group="gauth"
-  local _ssh_group="ssh-users"
 
   sed -i "s/[LISTEN]/${_listen}/g;
           s/[PORT]/${_port}/g; 
           s/[SUBSYS]/${_sftp_path}/;
-          s/[SSH-GROUP]/${_ssh_group}/g;
-          s/[2FA-GROUP]/${_2fa_group}/g"
+          s/[SSH-GROUP]/${_SSH_GROUP}/g;
+          s/[2FA-GROUP]/${_2FA_GROUP}/g"
           "${_file}"
 
 
+  __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
+# google-authenticator --force --time-based --qr-mode=UTF8 --disallow-reuse --emergency-codes=8 --no-confirm\
+#   --issuer="SSHD FluffyContainers Scripts"\
+#   --rate-limit=3 --rate-time=30\
+#   --window-size=17\
+#   --secret=/file_location
+}
+
+install_login_alert(){
   local _file="/usr/local/bin/${__SSHD_REPORT}"
+
+  [[ ! -f /etc/pam.d/sshd ]] && { __echo "ERROR" "No sshd pam.d file found"; return 1; }
+
   __echo "Adding custom login alert script"
   __download "${__SSHD_DOWLOAD_URL}/${__SSHD_REPORT}" "${_file}"
   __run chown root:root "${_file}"
   __run chmod 540 "${_file}"
 
   local _chat_link=""
-  local _server=""
+  local _server="${HOSTNAME}"
+
+  read -rp "Chat link: " _chat_link
   sed -i "s/[CHAT-LINK]/${_chat_link}/g;
           s/[SERVER]/${_server}/g;"
           "${_file}"
 
-  echo -e "\n\nsession optional pam_exec.so seteuid /usr/local/bin/login_report.sh\n" >> /etc/pam.d/sshd
 
-  __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
-
+  grep "${_file}" /etc/pam.d/sshd 1>/dev/null 2>&1 && { __echo "WARN" "Alert pam.d already present"; } || {
+    echo -e "\n\nsession optional pam_exec.so seteuid /usr/local/bin/login_report.sh\n" >> /etc/pam.d/sshd 
+    __echo "Alert hook added to the pam.d" 
+  }
+  
 }
+
+[[ ${UID} -ne 0 ]] && { __echo "ERROR" "Script should be executed with root permissions only"; exit 1; }
+
+while true; do
+  clear
+  menu "Configure SSHd,Configure Login Alert,Configure SSHGuard for SSHd,Create or Modify User,Create or Modify 2FA User,Exit" "SSHD Hardening"
+  case "$?" in 
+    0)  install;;
+    1)  install_login_alert;;
+    2)  __echo "WARN" "To be implemented...";;
+    3)  __echo "WARN" "To be implemented...";;
+    4)  __echo "WARN" "To be implemented...";;
+    5) break;;
+    *)  __echo "ERROR" "User canceled";;
+  esac
+  echo -e "\n\nPress any key to back to menu..."
+  readKey 1>/dev/null
+done
