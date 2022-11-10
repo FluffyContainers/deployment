@@ -260,7 +260,11 @@ install(){
   __run groupadd --system --force "${_2FA_GROUP}"
   __run groupadd --system --force "${_SSH_GROUP}"
   grep "pam_google_authenticator.so" /etc/pam.d/sshd 1>/dev/null 2>&1 && __echo "sshd 2fa hook already exist, skipping" || {
-    __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
+    if [[ "${_platform}" == "rhel" ]]; then
+      __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
+    else
+      __run sed -i 's|# PAM configuration for the Secure Shell service|# PAM configuration for the Secure Shell service\n\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
+    fi
   }
 }
 
@@ -307,17 +311,19 @@ configure_sshguard(){
 }
 
 configure_user(){
+  local OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
+  local _platform="rhel"
+  [[ "ubuntu debian" =~ (^|[[:space:]])"${OS_TYPE}"(|[[:space:]]) ]] &&  local _platform="ubuntu"
+
   read -rep "User name to create or modify: " username
   
   if ! cat "/etc/passwd" | awk -F ':' '{print $1}'| grep "${username}" 1>/dev/null 2>&1; then
     __echo "Creaing new user \"${username}\""
-    __run adduser -G "${_SSH_GROUP}" --shell /bin/bash "${username}"
-  fi
-
-
-  if groups "${username}" | awk -F ':' '{print $2}' | grep "${_2FA_GROUP}" 1>/dev/null 2>/dev/null; then 
-    __echo "Removing user \"${username}\" from the group \"${_2FA_GROUP}\""
-    __run usermod -r -G "${_2FA_GROUP}" "${username}"
+    if [[ "${_platform}" == "rhel" ]]; then
+      __run adduser --shell /bin/bash "${username}"
+    else
+      __run adduser --shell /bin/bash --gecos "" "${username}"
+    fi
   fi
 
   if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
@@ -328,19 +334,29 @@ configure_user(){
 }
 
 configure_2fa(){
+  local OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
+  local _platform="rhel"
+  [[ "ubuntu debian" =~ (^|[[:space:]])"${OS_TYPE}"(|[[:space:]]) ]] &&  local _platform="ubuntu"
+
   read -rep "2FA User name to create or modify: " username
+
+
 
   if ! cat "/etc/passwd" | awk -F ':' '{print $1}'| grep "${username}" 1>/dev/null 2>&1; then
     __echo "Creaing new user \"${username}\""
-    __run adduser -G "${_2FA_GROUP}" --shell /bin/bash "${username}"
-  fi
-
-  if groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
-    __echo "Removing user \"${username}\" from the group \"${_SSH_GROUP}\""
-    __run usermod -r -G "${_SSH_GROUP}" "${username}"
+    if [[ "${_platform}" == "rhel" ]]; then
+      __run adduser --shell /bin/bash "${username}"
+    else
+      __run adduser --shell /bin/bash --gecos "" "${username}"
+    fi
   fi
 
   if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
+    __echo "Adding user \"${username}\" to the group \"${_SSH_GROUP}\""
+    __run usermod -a -G "${_SSH_GROUP}" "${username}"
+  fi
+
+  if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_2FA_GROUP}" 1>/dev/null 2>/dev/null; then 
     __echo "Adding user \"${username}\" to the group \"${_2FA_GROUP}\""
     __run usermod -a -G "${_2FA_GROUP}" "${username}"
   fi

@@ -51,8 +51,4 @@ Match Group [2FA-GROUP]
     AuthenticationMethods keyboard-interactive
 Match all
 
-DenyGroups *
-Match group [SSH-GROUP]
-    DenyGroups nobody
-    AllowGroups [SSH-GROUP]
-Match all
+AllowGroups [SSH-GROUP]
