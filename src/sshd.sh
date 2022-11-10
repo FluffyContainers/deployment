@@ -324,6 +324,7 @@ configure_user(){
     else
       __run adduser --shell /bin/bash --gecos "" "${username}"
     fi
+    passwd "${username}"
   fi
 
   if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
@@ -347,8 +348,9 @@ configure_2fa(){
     if [[ "${_platform}" == "rhel" ]]; then
       __run adduser --shell /bin/bash "${username}"
     else
-      __run adduser --shell /bin/bash --gecos "" "${username}"
+      __run adduser --shell /bin/bash --gecos \"\" "${username}"
     fi
+    passwd "${username}"
   fi
 
   if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
