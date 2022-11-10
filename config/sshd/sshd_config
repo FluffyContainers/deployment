@@ -40,7 +40,6 @@ ChallengeResponseAuthentication yes
 KbdInteractiveAuthentication no
 PasswordAuthentication no
 PermitEmptyPasswords no
-KbdInteractiveAuthentication
 AuthenticationMethods publickey
 
 # override default of no subsystems

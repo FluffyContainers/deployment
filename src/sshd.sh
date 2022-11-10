@@ -15,8 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# shellcheck disable=SC2155,SC2015
+# shellcheck disable=SC2155,SC2015,SC2002
 
+_LISTEN="0.0.0.0"
+_PORT="2222"
 _2FA_GROUP="gauth"
 _SSH_GROUP="ssh-users"
 
@@ -60,7 +62,7 @@ __command(){
 }
 
 __run(){
-  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
+  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}"; echo -n "$* -> ["
   "$@" 1>/dev/null 2>/dev/null
   local n=$?
   [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
@@ -92,21 +94,22 @@ __download(){
   local _url="$1"
   local _file="${_url##*/}"
   [[ -z $2 ]] && local _destination="./" || local _destination="$2"
+  [[ "${_destination:0-1}" == "/" ]] && local _dest_path="${_destination}/${_file}" || local _dest_path="${_destination}"
 
   __echo "Downloading file ${_file}: "
-  curl -f "${_follow_link}" --progress-bar "${_url}" -o "${_destination}/${_file}" 2>&1
+  # shellcheck disable=SC2086
+  curl -f ${_follow_link} --progress-bar "${_url}" -o "${_dest_path}" 2>&1
   local _ret=$?
 
   [[ ${_ret} -eq 0 ]] && {
-    tput cuu1; echo -ne "\033[0K\r"; tput cuu1
+    echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A"
     __echo "Downloading file ${_file}: [${_COLOR[OK]}OK${_COLOR[RESET]}]"
   } || {
-    tput cuu1; echo -ne "\033[0K\r"; tput cuu1;echo -ne "\033[0K\r"; tput cuu1;
+    echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A";echo -ne "\033[0K\r"; echo -ne "\E[A";
     __echo "Downloading file ${_file}: [${_COLOR[ERROR]}ERROR ${_ret}${_COLOR[RESET]}]"
   }
-  return ${_ret}
+  return ${_ret} 
 }
-
 # ===================== BASH MENU
 
 moveCursor() {
@@ -229,49 +232,47 @@ __SSHD_REPORT="login_report.sh"
 
 install(){
   local OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
-
   local _platform="rhel"
   [[ "ubuntu debian" =~ (^|[[:space:]])"${OS_TYPE}"(|[[:space:]]) ]] &&  local _platform="ubuntu"
 
   # ===========================================
   local _sftp_path="/usr/libexec/openssh/sftp-server"
-  if [[ ${PLATFORM} == "rhel" ]]; then 
-    dnf install -y libpam-google-authenticator openssh-server
+  if [[ ${_platform} == "rhel" ]]; then 
+    dnf install -y google-authenticator openssh-server
   else 
     apt update
     apt install -y libpam-google-authenticator
     local _sftp_path="/usr/lib/openssh/sftp-server"
   fi
 
-  local _file="/etc/sshd/sshd_config"
+  local _file="/etc/ssh/sshd_config"
   __run mv -f "${_file}" "${_file}.back"
   __download "${__SSHD_DOWLOAD_URL}/${__SSHD_CONFIG}" "${_file}"
   __run chown root:root "${_file}"
   __run chmod 600 "${_file}"
 
-  local _listen="0.0.0.0"
-  local _port="2222"
+  __run sed -i "s|\[LISTEN\]|${_LISTEN}|g;
+          s|\[PORT\]|${_PORT}|g; 
+          s|\[SUBSYS\]|${_sftp_path}|;
+          s|\[2FA-GROUP\]|${_2FA_GROUP}|g;
+          s|\[SSH\-GROUP\]|${_SSH_GROUP}|g" "${_file}"
 
-  sed -i "s/[LISTEN]/${_listen}/g;
-          s/[PORT]/${_port}/g; 
-          s/[SUBSYS]/${_sftp_path}/;
-          s/[SSH-GROUP]/${_SSH_GROUP}/g;
-          s/[2FA-GROUP]/${_2FA_GROUP}/g"
-          "${_file}"
-
-
-  __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
-# google-authenticator --force --time-based --qr-mode=UTF8 --disallow-reuse --emergency-codes=8 --no-confirm\
-#   --issuer="SSHD FluffyContainers Scripts"\
-#   --rate-limit=3 --rate-time=30\
-#   --window-size=17\
-#   --secret=/file_location
+  __run groupadd --system --force "${_2FA_GROUP}"
+  __run groupadd --system --force "${_SSH_GROUP}"
+  grep "pam_google_authenticator.so" /etc/pam.d/sshd 1>/dev/null 2>&1 && __echo "sshd 2fa hook already exist, skipping" || {
+    __run sed -i 's|#%PAM-1.0|#%PAM-1.0\nauth required pam_google_authenticator.so nullok\n|' /etc/pam.d/sshd
+  }
 }
 
 install_login_alert(){
   local _file="/usr/local/bin/${__SSHD_REPORT}"
 
   [[ ! -f /etc/pam.d/sshd ]] && { __echo "ERROR" "No sshd pam.d file found"; return 1; }
+  [[ -f "${_file}" ]] && { __echo "ERROR" "Already present"; return 1; }
+  if grep "${__SSHD_REPORT}" /etc/pam.d/sshd; then
+    __echo "ERROR" "Hook already present"
+    return 1
+  fi
 
   __echo "Adding custom login alert script"
   __download "${__SSHD_DOWLOAD_URL}/${__SSHD_REPORT}" "${_file}"
@@ -281,10 +282,17 @@ install_login_alert(){
   local _chat_link=""
   local _server="${HOSTNAME}"
 
+  __echo "---------------------------------------------------------------------------------"
+  __echo "How to get hook link: "
+  __echo " - go to the chat.google.com"
+  __echo " - create new/select existing space"
+  __echo " - space name -> manage webhooks -> (set a new hook name) -> copy hook link "
+  __echo "---------------------------------------------------------------------------------"
+
   read -rp "Chat link: " _chat_link
-  sed -i "s/[CHAT-LINK]/${_chat_link}/g;
-          s/[SERVER]/${_server}/g;"
-          "${_file}"
+  local _chat_link=${_chat_link//\&/\\\&}
+  __run sed -i "s|\[CHAT\-LINK\]|${_chat_link}|g;
+          s|\[SERVER\]|${_server}|g;" "${_file}"
 
 
   grep "${_file}" /etc/pam.d/sshd 1>/dev/null 2>&1 && { __echo "WARN" "Alert pam.d already present"; } || {
@@ -294,17 +302,74 @@ install_login_alert(){
   
 }
 
+configure_sshguard(){
+  echo "not here yet"
+}
+
+configure_user(){
+  read -rep "User name to create or modify: " username
+  
+  if ! cat "/etc/passwd" | awk -F ':' '{print $1}'| grep "${username}" 1>/dev/null 2>&1; then
+    __echo "Creaing new user \"${username}\""
+    __run adduser -G "${_SSH_GROUP}" --shell /bin/bash "${username}"
+  fi
+
+
+  if groups "${username}" | awk -F ':' '{print $2}' | grep "${_2FA_GROUP}" 1>/dev/null 2>/dev/null; then 
+    __echo "Removing user \"${username}\" from the group \"${_2FA_GROUP}\""
+    __run usermod -r -G "${_2FA_GROUP}" "${username}"
+  fi
+
+  if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
+    __echo "Adding user \"${username}\" to the group \"${_SSH_GROUP}\""
+    __run usermod -a -G "${_SSH_GROUP}" "${username}"
+  fi
+  
+}
+
+configure_2fa(){
+  read -rep "2FA User name to create or modify: " username
+
+  if ! cat "/etc/passwd" | awk -F ':' '{print $1}'| grep "${username}" 1>/dev/null 2>&1; then
+    __echo "Creaing new user \"${username}\""
+    __run adduser -G "${_2FA_GROUP}" --shell /bin/bash "${username}"
+  fi
+
+  if groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
+    __echo "Removing user \"${username}\" from the group \"${_SSH_GROUP}\""
+    __run usermod -r -G "${_SSH_GROUP}" "${username}"
+  fi
+
+  if ! groups "${username}" | awk -F ':' '{print $2}' | grep "${_SSH_GROUP}" 1>/dev/null 2>/dev/null; then 
+    __echo "Adding user \"${username}\" to the group \"${_2FA_GROUP}\""
+    __run usermod -a -G "${_2FA_GROUP}" "${username}"
+  fi
+
+  local user_home=$(cat "/etc/passwd"| grep "^${username}:"|awk -F ':' '{print $6}')
+  __echo "User home path: ${user_home}"
+
+  [[ -f "${user_home}/.google_authenticator" ]] && { __echo "WARN" "OTP already configured"; return 1; }
+
+  google-authenticator --force --time-based --disallow-reuse --qr-mode=none --emergency-codes=8 --no-confirm\
+    --issuer="SSHD FluffyContainers Scripts"\
+    --rate-limit=3 --rate-time=30\
+    --window-size=17\
+    --secret="${user_home}/.google_authenticator"
+
+  __run chown "${username}":"${username}" "${user_home}/.google_authenticator"
+}
+
 [[ ${UID} -ne 0 ]] && { __echo "ERROR" "Script should be executed with root permissions only"; exit 1; }
 
 while true; do
-  clear
+  clear 1>/dev/null 2>/dev/null
   menu "Configure SSHd,Configure Login Alert,Configure SSHGuard for SSHd,Create or Modify User,Create or Modify 2FA User,Exit" "SSHD Hardening"
   case "$?" in 
     0)  install;;
     1)  install_login_alert;;
-    2)  __echo "WARN" "To be implemented...";;
-    3)  __echo "WARN" "To be implemented...";;
-    4)  __echo "WARN" "To be implemented...";;
+    2)  configure_sshguard;;
+    3)  configure_user;;
+    4)  configure_2fa;;
     5) break;;
     *)  __echo "ERROR" "User canceled";;
   esac
