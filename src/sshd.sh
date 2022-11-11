@@ -380,6 +380,8 @@ configure_2fa(){
 [[ ${UID} -ne 0 ]] && { __echo "ERROR" "Script should be executed with root permissions only"; exit 1; }
 
 while true; do
+  echo -ne "\033[2J"
+  moveCursor 0 0
   clear 1>/dev/null 2>/dev/null
   menu "Configure SSHd,Configure Login Alert,Configure SSHGuard for SSHd,Create or Modify User,Create or Modify 2FA User,Exit" "SSHD Hardening"
   case "$?" in 
