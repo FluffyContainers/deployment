@@ -81,6 +81,10 @@ __ask() {
     return 0
 }
 
+cuu1(){
+  echo -e "\E[A"
+}
+
 # https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
 # Results: 
 #          0 => =
@@ -102,18 +106,21 @@ __download(){
   local _url="$1"
   local _file="${_url##*/}"
   [[ -z $2 ]] && local _destination="./" || local _destination="$2"
+  [[ "${_destination:0-1}" == "/" ]] && local _dest_path="${_destination}/${_file}" || local _dest_path="${_destination}"
 
   __echo "Downloading file ${_file}: "
-  curl -f "${_follow_link}" --progress-bar "${_url}" -o "${_destination}/${_file}" 2>&1
+  # shellcheck disable=SC2086
+  curl -f ${_follow_link} --progress-bar "${_url}" -o "${_dest_path}" 2>&1
   local _ret=$?
 
   [[ ${_ret} -eq 0 ]] && {
-    tput cuu1; echo -ne "\033[0K\r"; tput cuu1
+    echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A"
     __echo "Downloading file ${_file}: [${_COLOR[OK]}OK${_COLOR[RESET]}]"
   } || {
-    tput cuu1; echo -ne "\033[0K\r"; tput cuu1;echo -ne "\033[0K\r"; tput cuu1;
+    echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A";echo -ne "\033[0K\r"; echo -ne "\E[A";
     __echo "Downloading file ${_file}: [${_COLOR[ERROR]}ERROR ${_ret}${_COLOR[RESET]}]"
   }
+  return ${_ret} 
 }
 
 # ===========================================================================
