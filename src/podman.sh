@@ -129,7 +129,7 @@ cat > /etc/cni/net.d/87-podman-bridge.conflist <<EOF
   "plugins": [
     {
       "type": "bridge",
-      "bridge": "podman",
+      "bridge": "br-podman",
       "isGateway": true,
       "ipMasq": false,
       "hairpinMode": false,
@@ -140,7 +140,9 @@ cat > /etc/cni/net.d/87-podman-bridge.conflist <<EOF
           [
             {
               "subnet": "${podman_network}.0/24",
-              "gateway": "${podman_network}.1"
+              "gateway": "${podman_network}.1",
+              "rangeStart": "${podman_network}.2",
+              "rangeEnd": "${podman_network}.254"
             }
           ]
         ]
