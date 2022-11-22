@@ -104,6 +104,8 @@ install_ubuntu(){
    fi
 
    __run apt install -y podman lxcfs
+   
+   # on rhel - dnf install containernetworking-plugins
 
 __info "Writting /etc/netplan/49-podman.yaml"
 cat > /etc/netplan/49-podman.yaml <<EOF
