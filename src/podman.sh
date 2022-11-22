@@ -210,6 +210,38 @@ runtime = "crun"
  ]
 EOF
 
+local _storage="/mnt/data/podman"
+
+__info "Writting /etc/containers/storage.conf"
+mkdir -p "${_storage}"
+cat > /etc/containers/storage.conf <<EOF
+[storage]
+driver = "overlay"
+
+runroot = "/run/containers/storage"
+graphroot = "${_storage}"
+
+[storage.options]
+additionalimagestores = [
+]
+
+
+[storage.options.overlay]
+#ignore_chown_errors = "false"
+# inodes = ""
+#mount_program = "/usr/bin/fuse-overlayfs"
+
+mountopt = "nodev,metacopy=on"
+
+# skip_mount_home = "false"
+# size = ""
+
+#  "": No value specified.
+#  "private": it is equivalent to 0700.
+#  "shared": it is equivalent to 0755.
+# force_mask = ""
+EOF
+
    return 0
 }
 
