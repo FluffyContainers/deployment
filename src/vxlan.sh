@@ -125,3 +125,34 @@ __download(){
 }
 
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
+
+BASE_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/vxlan"
+SCRIPT_URL="${BASE_URL}/vxlan"
+SERVICE_URL="${BASE_URL}/vxlan@.service"
+SAMPLE_URL="${BASE_URL}/sample.conf"
+
+CONFIGS_PATH="/etc/vxlan"
+BIN_PATH="/usr/local/sbin/vxlan"
+SERVICE_PATH="/etc/systemd/system/vxlan@.service"
+
+
+install(){
+  echo "VXLAN deployment script. "
+  echo -en "${_COLOR[ERROR]}You're about to deploy VXLAN on current system. ${_COLOR[RESET]}"
+  ! __ask "Agree to continue" && return 1
+
+  [[ ! -d ${CONFIGS_PATH} ]] && __run mkdir -p "${CONFIGS_PATH}"
+
+  __download "${SAMPLE_URL}" "${CONFIGS_PATH}"
+  __download "${SCRIPT_URL}" "${BIN_PATH}"
+  __run chmod +x "${BIN_PATH}"
+
+  __download "${SERVICE_URL}" "${SERVICE_PATH}"
+  __run systemctl daemon-reload
+  
+
+  __echo "Installation complete"
+}
+
+
+install
