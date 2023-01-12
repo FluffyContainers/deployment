@@ -128,7 +128,7 @@ __download(){
 
 BASE_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/vxlan"
 SCRIPT_URL="${BASE_URL}/vxlan"
-SERVICE_URL="${BASE_URL}/vxlan@.service"
+SERVICE_URL="${BASE_URL}/vxlan%40.service"
 SAMPLE_URL="${BASE_URL}/sample.conf"
 
 CONFIGS_PATH="/etc/vxlan"
@@ -143,7 +143,7 @@ install(){
 
   [[ ! -d ${CONFIGS_PATH} ]] && __run mkdir -p "${CONFIGS_PATH}"
 
-  __download "${SAMPLE_URL}" "${CONFIGS_PATH}"
+  __download "${SAMPLE_URL}" "${CONFIGS_PATH}/sample.conf"
   __download "${SCRIPT_URL}" "${BIN_PATH}"
   __run chmod +x "${BIN_PATH}"
 
