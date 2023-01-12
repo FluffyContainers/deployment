@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
+# [start]
 
 
 # shellcheck disable=SC2155,SC2015
@@ -123,87 +123,4 @@ __download(){
   return ${_ret} 
 }
 
-# [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
-
-_BIN_FILE="oh-my-posh"
-_POSH_BIN_PATH="${HOME}/.local/bin"
-_POSH_THEME="posh_theme.json"
-_POSH_THEME_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/posh/${_POSH_THEME}"
-_CONFIG_DIR="${HOME}/.config/posh"
-_POSH_RELEASE_URL="https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest"
-_POSH_RC_URL="https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/src/shell/scripts/omp.bash"
-_POSH_RC_PATH="${HOME}/.omprc"
-_POSH_LATEST_VERSION=$(curl ${_POSH_RELEASE_URL} 2>/dev/null|grep "tag_name"|cut -d ":" -f 2|cut -d \" -f 2)
-_PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
-_POSH_URL="https://github.com/JanDeDobbeleer/oh-my-posh/releases/download/${_POSH_LATEST_VERSION}/posh-linux-${_PLATFORM_TYPE}"
-_INSTALL_HOOK_TARGET="${HOME}/.bashrc"
-
-
-
-
-info_header(){
-    __echo "------"
-    __echo "Current POSH Version  : $1"
-    __echo "Available POSH Version: ${_POSH_LATEST_VERSION:1}"
-    __echo "Platform              : ${_PLATFORM_TYPE}"
-    __echo ""
-    __echo "Download link         : ${_POSH_URL}"
-    __echo "Base Install Dir      : ${HOME}"
-    __echo "------"
-}
-
-upgrade(){
-  local _dirs=(
-    "${_POSH_BIN_PATH}"
-    "${_CONFIG_DIR}"
-  )
-  for d in "${_dirs[@]}"; do
-    [[ ! -d "${d}" ]] && __run mkdir -p "${d}"
-  done
-
-  __download -L "${_POSH_URL}" "${_POSH_BIN_PATH}/${_BIN_FILE}"
-  __run chmod +x "${_POSH_BIN_PATH}/${_BIN_FILE}"
-  __download -L "${_POSH_THEME_URL}" "${_CONFIG_DIR}/${_POSH_THEME}"
-  __download -L "${_POSH_RC_URL}" "${_POSH_RC_PATH}"
-  __run sed -i "s|::OMP::|${_POSH_BIN_PATH}/${_BIN_FILE}|g; s|::CONFIG::|${_CONFIG_DIR}/${_POSH_THEME}|g" "${_POSH_RC_PATH}" 
-}
-
-install_new(){
-  upgrade
-
-  cat >> "${_INSTALL_HOOK_TARGET}" <<EOF
-
-# hook added by FluffyContainers deployment scripts
-if [[ -f "${_POSH_RC_PATH}" ]]; then
-  . ${_POSH_RC_PATH}
-fi
-EOF
-}
-
-install(){
-  echo "Powerline deployment script. "
-  echo -en "${_COLOR[ERROR]}You're about to deploy powerline on current system (user). ${_COLOR[RESET]}"
-  ! __ask "Agree to continue" && return 1
-
-  local _current_version="${_COLOR[ERROR]}not installed${_COLOR[RESET]}"
-
-  if [[ -f "${_POSH_BIN_PATH}/${_BIN_FILE}" ]]; then
-    _current_version=$("${_POSH_BIN_PATH}/${_BIN_FILE}" --version)
-    __vercomp "${_POSH_LATEST_VERSION:1}" "${_current_version}"
-    if [[ "0 1" =~ (^|[[:space:]])$?($|[[:space:]]) ]]; then
-      info_header "${_current_version}"
-      __echo "Local powerline version \"${_COLOR[WARN]}${_current_version}${_COLOR[RESET]}\" is older than available \"${_COLOR[OK]}${_POSH_LATEST_VERSION:1}${_COLOR[RESET]}\""
-      ! __ask "Upgrade local version to most recent one? " && return 1
-      
-      upgrade
-    fi
-  else 
-    info_header "${_current_version}"
-    ! __ask "Pursuit with installation? " && return 1
-    install_new
-  fi
-
-  __echo "Installation complete, reload console or execute: source \"${_POSH_RC_PATH}\""
-}
-
-install
+# [end]

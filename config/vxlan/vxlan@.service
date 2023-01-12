@@ -1,0 +1,13 @@
+[Unit]
+Description=Overlay Network for %I
+After=network.target auditd.service
+
+[Service]
+ExecStart=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh create %I
+ExecStop=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh destroy %I
+ExecReload=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh reload %I
+Type=oneshot
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
