@@ -143,7 +143,7 @@ install(){
 
   [[ ! -d ${CONFIGS_PATH} ]] && __run mkdir -p "${CONFIGS_PATH}"
 
-  __download "${SAMPLE_URL}" "${CONFIGS_PATH}/sample.conf"
+  __download "${SAMPLE_URL}" "${CONFIGS_PATH}/"
   __download "${SCRIPT_URL}" "${BIN_PATH}"
   __run chmod +x "${BIN_PATH}"
 
