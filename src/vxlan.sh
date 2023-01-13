@@ -102,10 +102,12 @@ __vercomp () {
     return 0
 }
 
-__download(){
+__urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
+
+__download() {
   [[ "${1^^}" == "-L" ]] && { local _follow_link="-L"; shift; } || local _follow_link=""
   local _url="$1"
-  local _file="${_url##*/}"
+  local _file=$(__urldecode "${_url##*/}")
   [[ -z $2 ]] && local _destination="./" || local _destination="$2"
   [[ "${_destination:0-1}" == "/" ]] && local _dest_path="${_destination}/${_file}" || local _dest_path="${_destination}"
 
@@ -127,14 +129,7 @@ __download(){
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
 
 BASE_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/vxlan"
-SCRIPT_URL="${BASE_URL}/vxlan"
-SERVICE_URL="${BASE_URL}/vxlan%40.service"
-SAMPLE_URL="${BASE_URL}/sample.conf"
-
 CONFIGS_PATH="/etc/vxlan"
-BIN_PATH="/usr/local/sbin/vxlan"
-SERVICE_PATH="/etc/systemd/system/vxlan@.service"
-
 
 install(){
   echo "VXLAN deployment script. "
@@ -143,15 +138,14 @@ install(){
 
   [[ ! -d ${CONFIGS_PATH} ]] && __run mkdir -p "${CONFIGS_PATH}"
 
-  __download "${SAMPLE_URL}" "${CONFIGS_PATH}/"
-  __download "${SCRIPT_URL}" "${BIN_PATH}"
+  __download "${BASE_URL}/sample.conf" "${CONFIGS_PATH}/"
+  __download "${BASE_URL}/vxlan" "/usr/local/sbin/vxlan"
   __run chmod +x "${BIN_PATH}"
 
-  __run "mkdir -p /etc/systemd/system"
-  __download "${SERVICE_URL}" "${SERVICE_PATH}"
+  [[ ! -d "/etc/systemd/system" ]] && __run "mkdir -p /etc/systemd/system"
+  __download "{BASE_URL}/vxlan%40.service" "/etc/systemd/system/vxlan@.service"
   __run systemctl daemon-reload
   
-
   __echo "Installation complete"
 }
 

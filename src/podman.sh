@@ -109,10 +109,12 @@ __vercomp () {
     return 0
 }
 
-__download(){
+__urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
+
+__download() {
   [[ "${1^^}" == "-L" ]] && { local _follow_link="-L"; shift; } || local _follow_link=""
   local _url="$1"
-  local _file="${_url##*/}"
+  local _file=$(__urldecode "${_url##*/}")
   [[ -z $2 ]] && local _destination="./" || local _destination="$2"
   [[ "${_destination:0-1}" == "/" ]] && local _dest_path="${_destination}/${_file}" || local _dest_path="${_destination}"
 
