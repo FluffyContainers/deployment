@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# Copyright 2022 FluffyContainers
+# GitHub: https://github.com/FluffyContainers
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# shellcheck disable=SC1090,SC2015,SC2076
+
+PATH=/usr/sbin:${PATH}
 
 __dir(){
   local SOURCE="${BASH_SOURCE[0]}"
@@ -11,22 +29,31 @@ __dir(){
   echo -n "$(cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd)"
 }
 
+declare -A _COLOR=(
+    [INFO]="\033[38;05;39m"
+    [ERROR]="\033[38;05;161m"
+    [WARN]="\033[38;05;178m"
+    [OK]="\033[38;05;40m"
+    [GRAY]="\033[38;05;245m"
+    [RESET]="\033[m"
+)
+
 __run(){
-  local _c_tag="\033[38;05;39m"
-  local _c_cmd="\033[38;05;245m"
-  local _c_ok="\033[38;05;40m"
-  local _c_fail="\033[38;05;161m"
-  echo -ne "${_c_tag}[EXEC] ${_c_cmd}$* -> ["
+  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
   "$@" 1>/dev/null 2>/dev/null
   local n=$?
-  [[ $n -eq 0 ]] && echo -ne "${_c_ok}${n}" || echo -ne "${_c_fail}${n}"
-  echo -e "${_c_cmd}]\033[m"
+  [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
   return ${n}
-}
+  }
 
-__echo() {
-  local _c_tag="\033[38;05;39m"
-  echo -e "${_c_tag}[INFO] $*"
+  __echo() {
+  local _lvl="INFO"
+  local _new_line=""
+
+  [[ "${1^^}" == "-N" ]] && { local _new_line="n"; shift; }
+  [[ "${1^^}" == "INFO" ]] || [[ "${1^^}" == "ERROR" ]] || [[ "${1^^}" == "WARN" ]] && { local _lvl=${1^^}; shift; }
+  
+  echo -${_new_line}e "${_COLOR[${_lvl}]}[${_lvl}]${_COLOR[RESET]} $*"
 }
 
 DIR=$(__dir)
@@ -34,57 +61,67 @@ DIR=$(__dir)
 xCMD=$1
 xNAME=$2
 
-. ${DIR}/nets/${xNAME}.conf
+[[ ! -f "/etc/vxlan/${xNAME}.conf" ]] && { __echo "ERROR" "Profile \"${xNAME}\" not found"; exit 1; } || true
 
-LANID=${LANID:-}
-LANGROUP=${LANGROUP:-}
-LANDEV=${LANDEV:-}
-LAN_MTU=${LAN_MTU:=1600}
-LAN_VXMTU=$((LAN_MTU - 50))
-LINKIP=${LINKIP:-}
-REMOTES=${REMOTES:-}
+. "/etc/vxlan/${xNAME}.conf"
+
+LAN_DST_PORT=${LAN_DST_PORT:=4789}
+VXLAN_ID=${VXLAN_ID:-}
+VXLAN_GROUP=${VXLAN_GROUP:-}
+VXLAN_IF_IP=${VXLAN_IF_IP:-}
+VXLAN_IF_MTU=${VXLAN_IF_MTU:=1450}
+VXLAN_REMOTES=${VXLAN_REMOTES:-}
+LAN_IF=${LAN_IF:-}
+LAN_MTU=$((VXLAN_IF_MTU + 50))
 
 
 add_bridge(){
-__run /usr/sbin/ip link set dev "${LANDEV}" mtu ${LAN_MTU}
-__run /usr/sbin/ip link add "br-${xNAME}" type bridge
-__run /usr/sbin/ip link set mtu ${LAN_VXMTU} dev "br-${xNAME}"
-__run /usr/sbin/ip addr add "${LINKIP}" dev "br-${xNAME}"
+  __run ip link set dev "${LAN_IF}" mtu "${LAN_MTU}"
+  __run ip link add "br-${xNAME}" type bridge
+  __run ip link set mtu ${VXLAN_IF_MTU} dev "br-${xNAME}"
+  __run ip addr add "${VXLAN_IF_IP}" dev "br-${xNAME}"
 }
 
 add_vxlan(){
-if [[ -n ${REMOTES} ]]; then
-  __echo "Using VxLAN remotes instead of dynamic group"
-  __run /usr/sbin/ip link add "vxlan-${xNAME}" type vxlan id "${LANID}" dstport 4789 dev "${LANDEV}"
-  for remote in ${REMOTES}; do
-    __run  /usr/sbin/bridge fdb append to 00:00:00:00:00:00 dev "vxlan-${xNAME}" dst "${remote}" via "${LANDEV}"
-  done
-else
-__run /usr/sbin/ip link add "vxlan-${xNAME}" type vxlan id "${LANID}" group "${LANGROUP}" dstport 4789 dev "${LANDEV}"
-fi
-__run /usr/sbin/ip link set mtu 1550 dev "vxlan-${xNAME}"
-__run /usr/sbin/ip link set dev "vxlan-${xNAME}" master "br-${xNAME}"
-__run /usr/sbin/ip link set "vxlan-${xNAME}" up
-__run /usr/sbin/ip link set "br-${xNAME}" up
+  if [[ -n ${VXLAN_REMOTES} ]]; then
+    local _local_ip=($(hostname -I))
+    __echo "Using VxLAN VXLAN_REMOTES instead of dynamic group"
+    __run ip link add "vxlan-${xNAME}" type vxlan id "${VXLAN_ID}" dstport "${LAN_DST_PORT}" dev "${LAN_IF}"
+    for remote in ${VXLAN_REMOTES }; do
+      [[ " ${_local_ip[*]} " =~ " ${remote} " ]] && continue
+      __run bridge fdb append to 00:00:00:00:00:00 dev "vxlan-${xNAME}" dst "${remote}" via "${LAN_IF}"
+    done
+  else
+    __run ip link add "vxlan-${xNAME}" type vxlan id "${VXLAN_ID}" group "${VXLAN_GROUP}" dstport "${LAN_DST_PORT}" dev "${LAN_IF}"
+  fi
+
+  __run ip link set mtu "${LAN_MTU}" dev "${LAN_IF}"
+
+  __run ip link set mtu "${VXLAN_IF_MTU}" dev "vxlan-${xNAME}"
+  __run ip link set dev "vxlan-${xNAME}" master "br-${xNAME}"
+  __run ip link set "vxlan-${xNAME}" up
+  __run ip link set "br-${xNAME}" up
 }
 
 destroy() {
-  __run /usr/sbin/ip link del "vxlan-${xNAME}"
-  __run /usr/sbin/ip link del "br-${xNAME}"
+  __run ip link del "vxlan-${xNAME}"
+  __run ip link del "br-${xNAME}"
 }
 
 reload() {
-  if [[ -z ${REMOTES} ]]; then
+  if [[ -z ${VXLAN_REMOTES} ]]; then
     __info "No reload required, using VxLAN groups"
     return
   fi
 
-  if __run /usr/sbin/bridge fdb show 00:00:00:00:00:00 dev "vxlan-${xNAME}"; then
-    __run /usr/sbin/bridge fdb del "00:00:00:00:00:00" dev "vxlan-${xNAME}"
+  if __run bridge fdb show 00:00:00:00:00:00 dev "vxlan-${xNAME}"; then
+    __run bridge fdb del "00:00:00:00:00:00" dev "vxlan-${xNAME}"
   fi
 
-  for remote in ${REMOTES}; do
-    __run  /usr/sbin/bridge fdb append to 00:00:00:00:00:00 dev "vxlan-${xNAME}" dst "${remote}" via "${LANDEV}"
+  local _local_ip=($(hostname -I))
+  for remote in ${VXLAN_REMOTES}; do
+    [[ " ${_local_ip[*]} " =~ " ${remote} " ]] && continue
+    __run  bridge fdb append to 00:00:00:00:00:00 dev "vxlan-${xNAME}" dst "${remote}" via "${LAN_IF}"
   done
 }
 
