@@ -147,6 +147,7 @@ install(){
   __download "${SCRIPT_URL}" "${BIN_PATH}"
   __run chmod +x "${BIN_PATH}"
 
+  __run "mkdir -p /etc/systemd/system"
   __download "${SERVICE_URL}" "${SERVICE_PATH}"
   __run systemctl daemon-reload
   
