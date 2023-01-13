@@ -1,11 +1,11 @@
 [Unit]
-Description=Overlay Network for %I
-After=network.target auditd.service
+Description=Overlay VXLAN Network for %I
+After=network.target
 
 [Service]
-ExecStart=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh create %I
-ExecStop=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh destroy %I
-ExecReload=/usr/bin/bash /usr/srv/_conf/system/init-overlay.sh reload %I
+ExecStart=/usr/bin/bash /usr/local/sbin/vxlan create %I
+ExecStop=/usr/bin/bash /usr/local/sbin/vxlan destroy %I
+ExecReload=/usr/bin/bash /usr/local/sbin/vxlan reload %I
 Type=oneshot
 RemainAfterExit=true
 
