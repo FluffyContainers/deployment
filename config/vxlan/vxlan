@@ -71,6 +71,7 @@ VXLAN_GROUP=${VXLAN_GROUP:-}
 VXLAN_IF_IP=${VXLAN_IF_IP:-}
 VXLAN_IF_MTU=${VXLAN_IF_MTU:=1450}
 VXLAN_REMOTES=${VXLAN_REMOTES:-}
+RESET_IPTABLES=${RESET_IPTABLES:=0}
 LAN_IF=${LAN_IF:-}
 LAN_MTU=$((VXLAN_IF_MTU + 50))
 
@@ -101,6 +102,7 @@ add_vxlan(){
   __run ip link set dev "vxlan-${xNAME}" master "br-${xNAME}"
   __run ip link set "vxlan-${xNAME}" up
   __run ip link set "br-${xNAME}" up
+  [[ ${RESET_IPTABLES} -eq 1 ]] && __run systemctl restart iptables || true
   __run iptables -A INPUT -p udp -m udp --dport "${LAN_DST_PORT}" -i "${LAN_IF}" -j ACCEPT
 }
 
