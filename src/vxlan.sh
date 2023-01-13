@@ -113,6 +113,8 @@ __download() {
 
   __echo "Downloading file ${_file}: "
   # shellcheck disable=SC2086
+  echo "--> curl -f ${_follow_link} --progress-bar "${_url}" -o "${_dest_path}""
+  echo
   curl -f ${_follow_link} --progress-bar "${_url}" -o "${_dest_path}" 2>&1
   local _ret=$?
 
@@ -139,11 +141,13 @@ install(){
   [[ ! -d ${CONFIGS_PATH} ]] && __run mkdir -p "${CONFIGS_PATH}"
 
   __download "${BASE_URL}/sample.conf" "${CONFIGS_PATH}/"
+
+  [[ ! -d "/usr/local/sbin" ]] && mkdir -p "/usr/local/sbin"
   __download "${BASE_URL}/vxlan" "/usr/local/sbin/vxlan"
-  __run chmod +x "${BIN_PATH}"
+  __run chmod +x "/usr/local/sbin/vxlan"
 
   [[ ! -d "/etc/systemd/system" ]] && __run "mkdir -p /etc/systemd/system"
-  __download "{BASE_URL}/vxlan%40.service" "/etc/systemd/system/vxlan@.service"
+  __download "${BASE_URL}/vxlan%40.service" "/etc/systemd/system/vxlan@.service"
   __run systemctl daemon-reload
   
   __echo "Installation complete"
