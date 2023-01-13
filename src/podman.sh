@@ -125,10 +125,10 @@ __download() {
 
   [[ ${_ret} -eq 0 ]] && {
     echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A"
-    __echo "Downloading file ${_file}: [${_COLOR[OK]}OK${_COLOR[RESET]}]"
+    __echo "Downloading file ${_file}: [${_COLOR[OK]}ok${_COLOR[RESET]}]"
   } || {
     echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A";echo -ne "\033[0K\r"; echo -ne "\E[A";
-    __echo "Downloading file ${_file}: [${_COLOR[ERROR]}ERROR ${_ret}${_COLOR[RESET]}]"
+    __echo "Downloading file ${_file}: [${_COLOR[ERROR]}fail ${_ret}${_COLOR[RESET]}]"
   }
   return ${_ret} 
 }
