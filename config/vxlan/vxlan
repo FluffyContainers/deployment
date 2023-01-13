@@ -101,6 +101,7 @@ add_vxlan(){
   __run ip link set dev "vxlan-${xNAME}" master "br-${xNAME}"
   __run ip link set "vxlan-${xNAME}" up
   __run ip link set "br-${xNAME}" up
+  __run iptables -A INPUT -p udp -m udp --dport "${LAN_DST_PORT}" -i "${LAN_IF}" -j ACCEPT
 }
 
 destroy() {
@@ -125,6 +126,10 @@ reload() {
   done
 }
 
+dump(){
+  tcpdump -l -n -i "${LAN_IF}" "port ${LAN_DST_PORT} and udp[11:4] = ${VXLAN_ID}"
+}
+
 case ${xCMD} in
   create)
     add_bridge
@@ -133,6 +138,8 @@ case ${xCMD} in
     destroy;;
   reload)
     reload;;
+  dump)
+    dump;;
   *)
     echo "Supported commands: create, destroy, reload";;
 esac
