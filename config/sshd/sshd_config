@@ -49,6 +49,10 @@ Match Group [2FA-GROUP]
     PasswordAuthentication yes
     KbdInteractiveAuthentication yes
     AuthenticationMethods keyboard-interactive
+
+Match Group [SSH-GROUP]
+  AllowTcpForwarding local
+
 Match all
 
 AllowGroups [SSH-GROUP]
