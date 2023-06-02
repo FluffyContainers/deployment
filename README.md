@@ -15,6 +15,7 @@ Quick deployment:
 Fedora Server
 --
 Error: "Leaked file identifier......"
+
 Solution: 
 ```
 echo "export LVM_SUPPRESS_FD_WARNINGS=1" >> /etc/environment
