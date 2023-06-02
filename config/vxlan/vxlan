@@ -88,7 +88,7 @@ add_vxlan(){
     local _local_ip=($(hostname -I))
     __echo "Using VxLAN VXLAN_REMOTES instead of dynamic group"
     __run ip link add "vxlan-${xNAME}" type vxlan id "${VXLAN_ID}" dstport "${LAN_DST_PORT}" dev "${LAN_IF}"
-    for remote in ${VXLAN_REMOTES }; do
+    for remote in ${VXLAN_REMOTES}; do
       [[ " ${_local_ip[*]} " =~ " ${remote} " ]] && continue
       __run bridge fdb append to 00:00:00:00:00:00 dev "vxlan-${xNAME}" dst "${remote}" via "${LAN_IF}"
     done
