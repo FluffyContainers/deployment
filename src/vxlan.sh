@@ -128,9 +128,15 @@ __download() {
   return ${_ret} 
 }
 
+
+# [module: hardcode.sh]
+DEPL_BRANCH="main"
+DEPL_MAIN_DOWNLOAD_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/${DEPL_BRANCH}"
+DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
+
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
 
-BASE_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/vxlan"
+BASE_URL="${DEPL_CONFIG_URL}/vxlan"
 CONFIGS_PATH="/etc/vxlan"
 
 install(){

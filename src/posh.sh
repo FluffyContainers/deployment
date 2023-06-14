@@ -127,12 +127,18 @@ __download() {
   return ${_ret} 
 }
 
+
+# [module: hardcode.sh]
+DEPL_BRANCH="main"
+DEPL_MAIN_DOWNLOAD_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/${DEPL_BRANCH}"
+DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
+
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
 
 _BIN_FILE="oh-my-posh"
 _POSH_BIN_PATH="${HOME}/.local/bin"
 _POSH_THEME="posh_theme.json"
-_POSH_THEME_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/main/config/posh/${_POSH_THEME}"
+_POSH_THEME_URL="${DEPL_CONFIG_URL}/posh/${_POSH_THEME}"
 _CONFIG_DIR="${HOME}/.config/posh"
 _POSH_RELEASE_URL="https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest"
 _POSH_RC_URL="https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/src/shell/scripts/omp.bash"
