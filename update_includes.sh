@@ -17,6 +17,14 @@
 
 # shellcheck disable=SC2155,SC2015
 
+
+# How to use first time: 
+# - create file in "src" folder
+# - add line with content "# [template]"
+# - execute update_includes.sh file
+# ...
+# - after first execution, files would be automaticaly updated with any new script execution
+
 __dir(){
   local __source="${BASH_SOURCE[0]}"
   while [[ -h "${__source}" ]]; do
