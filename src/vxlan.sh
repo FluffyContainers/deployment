@@ -17,6 +17,7 @@
 
 
 # [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
+# [module: core.sh]
 
 
 # shellcheck disable=SC2155,SC2015

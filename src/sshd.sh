@@ -22,24 +22,24 @@ _PORT="2222"
 _2FA_GROUP="gauth"
 _SSH_GROUP="ssh-users"
 
+# [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
+# [module: core.sh]
+
+
+# shellcheck disable=SC2155,SC2015
+
 # =====================
-# 
 #  Terminal functions
-#
 # =====================
+
 declare -A _COLOR=(
-  [INFO]="\033[38;05;39m"
-  [ERROR]="\033[38;05;161m"
-  [WARN]="\033[38;05;178m"
-  [OK]="\033[38;05;40m"
-  [GRAY]="\033[38;05;245m"
-  [RESET]="\033[m"
-
-  # menu colors
-  [UNSELECTED]="\033[38;05;188m"
-  [SELECTED]="\033[38;05;232;48;05;188m"
+    [INFO]="\033[38;05;39m"
+    [ERROR]="\033[38;05;161m"
+    [WARN]="\033[38;05;178m"
+    [OK]="\033[38;05;40m"
+    [GRAY]="\033[38;05;245m"
+    [RESET]="\033[m"
 )
-
 
 __command(){
   local title="$1"
@@ -62,7 +62,7 @@ __command(){
 }
 
 __run(){
-  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}"; echo -n "$* -> ["
+  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
   "$@" 1>/dev/null 2>/dev/null
   local n=$?
   [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
@@ -89,10 +89,32 @@ __ask() {
     return 0
 }
 
-__download(){
+cuu1(){
+  echo -e "\E[A"
+}
+
+# https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
+# Results: 
+#          0 => =
+#          1 => >
+#          2 => <
+__vercomp () {
+    [[ "$1" == "$2" ]] && return 0 ; local IFS=. ; local i ver1=($1) ver2=($2)
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++));  do ver1[i]=0;  done
+    for ((i=0; i<${#ver1[@]}; i++)); do
+        [[ -z ${ver2[i]} ]] && ver2[i]=0
+        ((10#${ver1[i]} > 10#${ver2[i]})) &&  return 1
+        ((10#${ver1[i]} < 10#${ver2[i]})) &&  return 2
+    done
+    return 0
+}
+
+__urldecode() { : "${*//+/ }"; echo -e "${_//%/\\x}"; }
+
+__download() {
   [[ "${1^^}" == "-L" ]] && { local _follow_link="-L"; shift; } || local _follow_link=""
   local _url="$1"
-  local _file="${_url##*/}"
+  local _file=$(__urldecode "${_url##*/}")
   [[ -z $2 ]] && local _destination="./" || local _destination="$2"
   [[ "${_destination:0-1}" == "/" ]] && local _dest_path="${_destination}/${_file}" || local _dest_path="${_destination}"
 
@@ -103,13 +125,16 @@ __download(){
 
   [[ ${_ret} -eq 0 ]] && {
     echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A"
-    __echo "Downloading file ${_file}: [${_COLOR[OK]}OK${_COLOR[RESET]}]"
+    __echo "Downloading file ${_file}: [${_COLOR[OK]}ok${_COLOR[RESET]}]"
   } || {
     echo -ne "\E[A"; echo -ne "\033[0K\r"; echo -ne "\E[A";echo -ne "\033[0K\r"; echo -ne "\E[A";
-    __echo "Downloading file ${_file}: [${_COLOR[ERROR]}ERROR ${_ret}${_COLOR[RESET]}]"
+    __echo "Downloading file ${_file}: [${_COLOR[ERROR]}fail ${_ret}${_COLOR[RESET]}]"
   }
   return ${_ret} 
 }
+
+# [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
+
 # ===================== BASH MENU
 
 moveCursor() {
