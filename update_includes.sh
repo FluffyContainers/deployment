@@ -38,6 +38,7 @@ __END_INCLUDE="[template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CUR
 __START_BLOCK="[start]"
 __END_BLOCK="[end]"
 __TEMPLATE_PLACEHOLDER="[template]"
+__MODULE_OPTIONS="options:"
 
 
 generate_template(){
@@ -46,12 +47,39 @@ generate_template(){
   # shellcheck disable=SC2094
   for f in "${TPL_DIR}/"*; do
     local _can_copy=0
+    local _scan_options=0
+    local _print_header=0
+    local _opts_len=${#__MODULE_OPTIONS}
+
     while IFS= read -rs line; do
       [[ "${line}" == "# ${__START_BLOCK}" ]] && {
         local _can_copy=1
-        echo "# [module: $(basename "${f}")]"
+        local _scan_options=1
         continue
       }
+
+      [[ ${_print_header} -eq 1 ]] && {
+        echo "# [module: $(basename "${f}")]"
+        local _print_header=0
+      }
+
+      [[ _scan_options -eq 1 ]] && {
+        [[ "${line:2:${_opts_len}}" == "${__MODULE_OPTIONS}" ]] && {
+                # local _options=(${line:$((_opts_len + 2))})
+                IFS=" " read -r -a _options <<< "${line:$((_opts_len + 2))}"
+
+                local _optional=0
+                for opt in "${_options[@]}"; do 
+                  [[ "${opt}" == "optional" ]] && local _optional=1
+                done
+
+                [[ ${_optional} -eq 1 ]] && break
+
+                local _print_header=1
+                continue
+        } ||  { local _scan_options=0; local _print_header=1; }
+      } 
+
       [[ "${line}" == "# ${__END_BLOCK}" ]] && local _can_copy=0
       [[ ${_can_copy} -eq 0 ]] && continue
       printf '%s\n' "$line"

@@ -23,8 +23,8 @@ _2FA_GROUP="gauth"
 _SSH_GROUP="ssh-users"
 
 # [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
-# [module: core.sh]
 
+# [module: core.sh]
 
 # shellcheck disable=SC2155,SC2015
 
@@ -98,6 +98,7 @@ cuu1(){
 #          0 => =
 #          1 => >
 #          2 => <
+# shellcheck disable=SC2206
 __vercomp () {
     [[ "$1" == "$2" ]] && return 0 ; local IFS=. ; local i ver1=($1) ver2=($2)
     for ((i=${#ver1[@]}; i<${#ver2[@]}; i++));  do ver1[i]=0;  done

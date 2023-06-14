@@ -90,6 +90,7 @@ cuu1(){
 #          0 => =
 #          1 => >
 #          2 => <
+# shellcheck disable=SC2206
 __vercomp () {
     [[ "$1" == "$2" ]] && return 0 ; local IFS=. ; local i ver1=($1) ver2=($2)
     for ((i=${#ver1[@]}; i<${#ver2[@]}; i++));  do ver1[i]=0;  done
