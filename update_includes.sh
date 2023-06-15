@@ -48,16 +48,20 @@ __END_BLOCK="[end]"
 __TEMPLATE_PLACEHOLDER="[template]"
 __MODULE_OPTIONS="options:"
 
+declare -A _TEMPLATES=()
 
-generate_template(){
-  echo "# ${__START_INCLUDE}"
 
+read_modules(){
   # shellcheck disable=SC2094
   for f in "${TPL_DIR}/"*; do
     local _can_copy=0
     local _scan_options=0
-    local _print_header=0
     local _opts_len=${#__MODULE_OPTIONS}
+    
+    local _module_name=$(basename "${f}")
+    local _module_content=""
+    # options
+    local _optional=0
 
     while IFS= read -rs line; do
       [[ "${line}" == "# ${__START_BLOCK}" ]] && {
@@ -66,33 +70,40 @@ generate_template(){
         continue
       }
 
-      [[ ${_print_header} -eq 1 ]] && {
-        echo "# [module: $(basename "${f}")]"
-        local _print_header=0
-      }
-
+      
       [[ _scan_options -eq 1 ]] && {
         [[ "${line:2:${_opts_len}}" == "${__MODULE_OPTIONS}" ]] && {
                 # local _options=(${line:$((_opts_len + 2))})
                 IFS=" " read -r -a _options <<< "${line:$((_opts_len + 2))}"
-
-                local _optional=0
                 for opt in "${_options[@]}"; do 
                   [[ "${opt}" == "optional" ]] && local _optional=1
                 done
-
-                [[ ${_optional} -eq 1 ]] && break
-
-                local _print_header=1
                 continue
-        } ||  { local _scan_options=0; local _print_header=1; }
+        } || local _scan_options=0
       } 
 
       [[ "${line}" == "# ${__END_BLOCK}" ]] && local _can_copy=0
       [[ ${_can_copy} -eq 0 ]] && continue
-      printf '%s\n' "$line"
 
+      local _module_content="${_module_content}
+${line}"
     done < "${f}"
+
+    _TEMPLATES["${_module_name},${_optional}"]="${_module_content}
+"
+  done
+}
+
+generate_template(){
+  echo "# ${__START_INCLUDE}"
+
+  # shellcheck disable=SC2094
+  for tpl in "${!_TEMPLATES[@]}"; do 
+    IFS=',' read -r -a _options <<< "${tpl}"
+
+    [[ ${_options[1]} -eq 1 ]] && continue
+    echo "# [module: ${_options[0]}]"
+    echo "${_TEMPLATES[${tpl}]}"
   done
 
   echo "# ${__END_INCLUDE}"
@@ -137,7 +148,13 @@ update_files(){
   done
 }
 
-echo -n "Generating template ... "
+
+
+echo -n "Building modules list ... "
+read_modules
+echo "${#_TEMPLATES[@]} modules"
+
+echo -n "Generate template ... "
 IFS= TEMPLATE=$(generate_template)
 
 IFS= __lines=$(number_of_lines "${TEMPLATE}")

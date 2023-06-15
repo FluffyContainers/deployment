@@ -16,8 +16,8 @@
 # limitations under the License.
 
 # [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
-
 # [module: core.sh]
+
 
 # shellcheck disable=SC2155,SC2015
 
@@ -129,9 +129,12 @@ __download() {
 
 
 # [module: hardcode.sh]
+
+
 DEPL_BRANCH="main"
 DEPL_MAIN_DOWNLOAD_URL="https://raw.githubusercontent.com/FluffyContainers/deployment/${DEPL_BRANCH}"
 DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
+
 
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
 

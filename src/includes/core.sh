@@ -17,7 +17,6 @@
 
 # [start]
 
-
 # shellcheck disable=SC2155,SC2015
 
 # =====================
