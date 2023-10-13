@@ -148,7 +148,10 @@ update_files(){
   done
 }
 
+# shellcheck disable=SC1091
+. "${DIR}/src/includes/core.sh"
 
+# ========== [MAIN SCRIPT] ===============
 
 echo -n "Building modules list ... "
 read_modules

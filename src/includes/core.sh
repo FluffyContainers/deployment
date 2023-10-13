@@ -32,6 +32,7 @@ declare -A _COLOR=(
     [RESET]="\033[m"
 )
 
+# deprecated, should be overseeded by __run with porting functionality and letting it be simple as __run
 __command(){
   local title="$1"
   local status="$2"  # 0 or 1
@@ -52,10 +53,31 @@ __command(){
   fi
 }
 
+# __run [-t "command caption" [-s]] command
+# -t "command caption" - instead of command itself, show the specified text
+# -s - if provided, command itself would be hidden from the output
 __run(){
-  echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
+  local _default=1
+  local _f=""
+
+  [[ "${1^^}" == "-T" ]] && {
+    local _title="${2}"
+    shift; shift; 
+    echo -ne "${_title} "
+    [[ "${1^^}" != "-S" ]] && echo -ne "${_COLOR[GRAY]} | $*" || shift
+    local _default=0
+  }
+  [[ "${1^^}" == "-F" ]] && {
+    local _f="${2}"
+    shift;shift;
+  }
+
   "$@" 1>/dev/null 2>/dev/null
   local n=$?
+
+  [[ ! -z ${_f} ]] && echo -ne " | $(${_f})"
+  [[ ${_default} -eq 0 ]] &&  echo -ne "${_COLOR[GRAY]} ... [" || echo -ne "${_COLOR[INFO]}[EXEC] ${_COLOR[GRAY]}$* -> ["
+  
   [[ $n -eq 0 ]] && echo -e "${_COLOR[OK]}ok${_COLOR[GRAY]}]${_COLOR[RESET]}" || echo -e "${_COLOR[ERROR]}fail[#${n}]${_COLOR[GRAY]}]${_COLOR[RESET]}"
   return ${n}
   }
