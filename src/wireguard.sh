@@ -16,10 +16,6 @@
 # limitations under the License.
 
 
-# [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
-# [module: core.sh]
-
-
 # shellcheck disable=SC2155,SC2015
 
 
@@ -30,10 +26,10 @@ install(){
   echo -en "${_COLOR[ERROR]}You're about to deploy System base conf on current system. ${_COLOR[RESET]}"
   ! __ask "Agree to continue" && return 1
 
-  # suppress fd leaks messsages 
-  __echo "Updating environment and profile to suppress LVM FD Leaks warnings"
-  echo "export LVM_SUPPRESS_FD_WARNINGS=1" >> /etc/environment
-  echo "export LVM_SUPPRESS_FD_WARNINGS=1" >> /etc/profile
+  __echo "Downloading file ${_file}: "
+  # shellcheck disable=SC2086
+  curl -f ${_follow_link} --progress-bar "${_url}" -o "${_dest_path}" 2>&1
+  local _ret=$?
 
   __download "${__SYSTEM_DOWLOAD_URL}/sysctl.d/system.conf" "/etc/sysctl.d/system.conf"
   __download "${__SYSTEM_DOWLOAD_URL}/dev/10-persistent-net.rules" "/etc/udev/rules.d/10-persistent-net.rules"
