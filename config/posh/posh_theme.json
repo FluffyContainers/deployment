@@ -21,6 +21,15 @@
           "type": "shell"
         },
         {
+        "type": "python",
+        "style": "powerline",
+        "powerline_symbol": "",
+        "foreground": "#100e23",
+        "background": "#906cff",
+        "template": "  {{ .Full }} ",
+        "display_mode": "context"
+        },
+        {
           "background": "p:sgreen",
           "foreground": "p:vdblue",
           "powerline_symbol": "\ue0b0",
