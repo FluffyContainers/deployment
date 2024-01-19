@@ -8,7 +8,7 @@ Quick deployment:
 |SSHD *beta* |```curl https://raw.githubusercontent.com/FluffyContainers/deployment/master/src/sshd.sh 2>/dev/null \| bash```    |
 |VXLAN.      |```curl https://raw.githubusercontent.com/FluffyContainers/deployment/master/src/vxlan.sh 2>/dev/null \| bash```   |
 |System base |```curl https://raw.githubusercontent.com/FluffyContainers/deployment/master/src/system.sh 2>/dev/null \| bash```  |
-
+|tmux        |```curl https://raw.githubusercontent.com/FluffyContainers/deployment/master/src/tmux.sh 2>/dev/null \| bash```    |
 
 
 

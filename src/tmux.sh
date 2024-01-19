@@ -15,14 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# shellcheck disable=SC2155,SC2015
-
-OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
-OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//')
-
-DIR=${PWD:-$(pwd)}
-
-
 # [template] !!! DO NOT MODIFY CODE INSIDE. INSTEAD USE apply-teplate.sh script to update template !!!
 # [module: core.sh]
 
@@ -219,183 +211,113 @@ DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
 
 # [template] [end] !!! DO NOT REMOVE ANYTHING INSIDE, INCLUDING CURRENT LINE !!!
 
-check_podman_deployment(){
-    podman -v 1>/dev/null 2>&1
-    if [[ $? -ne 127 ]]; then
-      local _podman_version=$(podman -v|awk '{print $3}')
-      __echo "ERROR" "Podman instance version ${_podman_version} already deployed, aborting"
-      return 1
+APP="tmux"
+
+
+_PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
+_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
+_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//')
+
+
+declare -A _VARS=(
+    [TERM]="xterm-256color"
+    [COLORTERM]="24bit"
+)
+
+# shellcheck disable=SC2120
+info_header(){
+    local __inject_rows="${1}"
+    __echo "------"
+    __echo "OS                    : ${_OS_TYPE} ${_OS_VERSION}"
+    __echo "Platform              : ${_PLATFORM_TYPE}"
+    __echo "Application           : ${APP}"
+    __echo "Base Install Dir      : ${HOME}"
+    if [[ -n "${__inject_rows}" ]]; then
+    __echo ""
+     ${__inject_rows}
     fi
-    return 0
+    __echo "------"
+}
+
+
+__adhock(){
+  for key in "${!_VARS[@]}"; do 
+   if [[ "${!key}" != "${_VARS[${key}]}" ]]; then
+     __echo "[.bashrc change]       : setting ${key} from \"${!key}\" to ${_VARS[${key}]}"
+   fi
+  done
+}
+
+__install(){
+  [[ -d "${HOME}/.config/tmux/plugins/tpm" ]] && __run rm -rf "${HOME}/.config/tmux/plugins/tpm"
+  __run git clone "https://github.com/tmux-plugins/tpm" "${HOME}/.config/tmux/plugins/tpm"
+  __download -L "${DEPL_CONFIG_URL}/${APP}/tmux.conf" "${HOME}/.config/tmux/"
+
+ 
+  local _isfirst="\n"
+  for key in "${!_VARS[@]}"; do 
+   if [[ "${!key}" != "${_VARS[${key}]}" ]]; then
+     __echo "Setting ${key} variable"
+      echo -e "${_isfirst}export ${key}=${_VARS[${key}]}" >> "${HOME}/.bashrc"
+      local _isfirst=""
+   fi
+  done
+
+  __run -o --stream "${HOME}/.config/tmux/plugins/tpm/scripts/install_plugins.sh"
+
+cat <<EOF
+Some tmux shortcuts:
+======================
+<preffix> -> C-b
+
+Update TPM plugins: <preffix>+I
+
+Sessions                               Windows
+---------                             ---------
+tmux              tmux a              tmux new -s sessionname -n windowsname
+tmux new          tmux attach         New    - <preffix> + c
+tmux ls           tmux at             Rename - <preffix> + ,
+tmux new -s name  tmux a -t name      Close  - <preffix> + &
+[inside] :new                         List   - <preffix> + w
+                                      Switch - <preffix> + 0..9
+rename   - <preffix> + $             
+deattach - <preffix> + d              Copy Mode
+                                      -----------
+                                      Switch - <preffix> + [
+Panes                                 Quit - q           
+-------                               
+Split vertical         - <preffix> + %
+Split horizontal       - <preffix> + " 
+Zoom pane              - <preffix> + z
+Convert pane to window - <preffix> + ! 
+Close                  - <preffix> + x
+
+EOF
+__echo "warn" "Reload shell to apply .bashrc changes or execute "source ~/.bashrc""
+}
+
+install_fedora(){
+  __run dnf install -y tmux git curl
+  __install
 }
 
 install_ubuntu(){
-   read -rep "Please specify container network base address (i.e. 10.10.10): " podman_network < /dev/tty
-   if [[ -z ${podman_network} ]] ; then
-       __echo "error" "Action cancelled by the user"
-      return 1
-   fi
-
-   __run apt install -y podman lxcfs
-   
-   # on rhel - dnf install containernetworking-plugins
-
-__info "Writting /etc/netplan/49-podman.yaml"
-cat > /etc/netplan/49-podman.yaml <<EOF
-network:
-  version: 2
-  renderer: networkd
-
-  bridges:
-    podman:
-      addresses: [${podman_network}.1/24]
-      mtu: 1500
-EOF
-  __run netplan generate 
-  __run netplan --debug apply
-
-__info "Writting /etc/cni/net.d/87-podman-bridge.conflist"
-cat > /etc/cni/net.d/87-podman-bridge.conflist <<EOF
-{
-  "cniVersion": "0.4.0",
-  "name": "podman",
-  "plugins": [
-    {
-      "type": "bridge",
-      "bridge": "br-podman",
-      "isGateway": true,
-      "ipMasq": false,
-      "hairpinMode": false,
-      "ipam": {
-        "type": "host-local",
-        "routes": [{ "dst": "0.0.0.0/0" }],
-        "ranges": [
-          [
-            {
-              "subnet": "${podman_network}.0/24",
-              "gateway": "${podman_network}.1",
-              "rangeStart": "${podman_network}.2",
-              "rangeEnd": "${podman_network}.254"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "portmap",
-      "capabilities": {
-        "portMappings": true
-      }
-    },
-    {
-      "type": "firewall"
-    },
-    {
-      "type": "tuning"
-    }
-  ]
+    __run apt update
+    __run apt install -y tmux curl git
+    __install
 }
-EOF
 
-__info "Writting /etc/containers/containers.conf"
-cat > /etc/containers/containers.conf <<EOF
-[containers]
-cgroupns = "host"
-cgroups = "enabled"
-default_capabilities = [
-    "AUDIT_WRITE",
-    "CHOWN",
-    "DAC_OVERRIDE",
-    "FOWNER",
-    "FSETID",
-    "KILL",
-    "MKNOD",
-    "NET_BIND_SERVICE",
-    "NET_RAW",
-    "SETGID",
-    "SETPCAP",
-    "SETUID",
-    "SYS_CHROOT",
-]
-
-ipcns = "private"
-netns = "private"
-pidns = "private"
-utsns = "private"
-#userns = "auto"
-
-[network]
-network_config_dir = "/etc/cni/net.d/"
-network_backend = "cni"
-
-[engine]
-cgroup_manager = "cgroupfs"
-events_logger = "journald"
-runtime = "crun"
-
-[engine.runtimes]
- runc = [
-        "/usr/bin/crun"
- ]
-
- crun = [
-            "/usr/bin/crun"
- ]
-
- kata = [
-            "/usr/bin/crun",
- ]
-EOF
-
-local _storage="/mnt/data/podman"
-
-__info "Writting /etc/containers/storage.conf"
-mkdir -p "${_storage}"
-cat > /etc/containers/storage.conf <<EOF
-[storage]
-driver = "overlay"
-
-runroot = "/run/containers/storage"
-graphroot = "${_storage}"
-
-[storage.options]
-additionalimagestores = [
-]
-
-
-[storage.options.overlay]
-#ignore_chown_errors = "false"
-# inodes = ""
-#mount_program = "/usr/bin/fuse-overlayfs"
-
-mountopt = "nodev,metacopy=on"
-
-# skip_mount_home = "false"
-# size = ""
-
-#  "": No value specified.
-#  "private": it is equivalent to 0700.
-#  "shared": it is equivalent to 0755.
-# force_mask = ""
-EOF
-
-   return 0
+install_debian(){
+    install_ubuntu
 }
 
 
-install() {
-  __echo "Detected OS: ${OS_TYPE} ${OS_VERSION}"
-  
-  echo "Podman deployment script. "
-  echo -en "You're about to deploy podman on current system. "
+install(){
+  info_header __adhock
+  echo -en "You're about to deploy ${APP} on current system. "
   ! __ask "Agree to continue" && return 1
-  ! check_podman_deployment && exit 1
   
-  "install_${OS_TYPE}" 2>/dev/null
-
-  if [[ $? -eq 127 ]]; then
-    __echo "INFO" "Deployment for ${OS_TYPE} not implemented yet, stay tunned"
-  fi
+  [[ $(type -t "install_${_OS_TYPE,,}") == function ]] && "install_${_OS_TYPE,,}" || __echo "Unsupported OS Type"
 }
 
 
