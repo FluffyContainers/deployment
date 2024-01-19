@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2022 FluffyContainers
+# Copyright 2024 FluffyContainers
 # GitHub: https://github.com/FluffyContainers
 
 # Licensed under the Apache License, Version 2.0 (the "License");
