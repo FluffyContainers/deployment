@@ -297,7 +297,7 @@ __echo "warn" "Reload shell to apply .bashrc changes or execute "source ~/.bashr
 }
 
 install_fedora(){
-  __run dnf install -y tmux git curl
+  __run -o --stream dnf install -y tmux git curl
   __install
 }
 
