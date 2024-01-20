@@ -214,8 +214,9 @@ DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
 
 
 _PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
-_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
-_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//')
+_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
+_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
+read -ra _OS_LIKE <<< "$(grep "^ID_LIKE=" /etc/os-release | sed 's/ID_LIKE=//;s/"//g')"
 
 APP="neovim"
 
@@ -237,6 +238,7 @@ info_header(){
     __echo "------"
     __echo "OS                    : ${_OS_TYPE} ${_OS_VERSION}"
     __echo "Platform              : ${_PLATFORM_TYPE}"
+    __echo "Compatible            : ${_OS_LIKE[*]}"
     __echo "Application           : ${APP}"
     __echo "Base Install Dir      : ${HOME}"
     if [[ -n "${__inject_rows__func}" ]]; then
@@ -295,6 +297,7 @@ __echo "warn" "Reload shell to apply .bashrc changes or execute "source ~/.bashr
 #  settings in: configs/lspconfig.ua
 __install(){
    __run rm -rf ~/.local/share/nvim
+   __run rm -rf "${HOME}/.config/nvim"
    __run git clone https://github.com/NvChad/NvChad "${HOME}/.config/nvim" --depth 1
    __run mkdir -p ~/.config/nvim/lua/custom/configs
 
@@ -313,8 +316,18 @@ __install(){
    __help
 }
 
+install_neovim_bin(){
+  __download -L https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz /opt/nvim-linux64.tar.gz
+  __run tar xf /opt/nvim-linux64.tar.gz -C /usr/local --strip-components=1
+  __run rm -f /opt/nvim-linux64.tar.gz
+}
+
 install_fedora(){
-   __run -o --stream dnf install -y gcc neovim git npm 
+   __run -o --stream dnf install -y gcc git npm
+   if ! __run dnf install -y neovim; then
+     __echo "WARN" "Neovim is not in the repos, installing standalone binary instead..."
+     install_neovim_bin
+   fi 
    __install
 }
 
@@ -323,9 +336,7 @@ install_ubuntu(){
   __run apt update
   __run -o --stream apt install -y gcc git npm
   # Ubuntu installs too old version of neovim, opting to manual install https://github.com/neovim/neovim/blob/master/INSTALL.md
-  __download -L https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz /opt/nvim-linux64.tar.gz
-  __run tar xf /opt/nvim-linux64.tar.gz -C /usr/local --strip-components=1
-  __run rm -f /opt/nvim-linux64.tar.gz
+  install_neovim_bin
   __install
 }
 
@@ -339,7 +350,21 @@ install(){
   echo -en "You're about to deploy ${APP} on current system. "
   ! __ask "Agree to continue" && return 1
   
-  [[ $(type -t "install_${_OS_TYPE,,}") == function ]] && "install_${_OS_TYPE,,}" || __echo "Unsupported OS Type"
+  if [[ $(type -t "install_${_OS_TYPE,,}") == function ]]; then
+    "install_${_OS_TYPE,,}"
+  else
+    local _found=0
+    for _compatible in "${_OS_LIKE[@]}"; do
+      if [[ $(type -t "install_${_compatible,,}") == function ]]; then
+         __echo "WARN" "\"${_OS_TYPE}\" is not directly supported, executing as compatible with \"${_compatible}\""
+         sleep 2
+         "install_${_compatible,,}"
+         local _found=1
+         break
+      fi
+    done 
+    [[ ${_found} -eq 0 ]] && __echo "ERROR" "Unsupported OS Type"
+  fi
 }
 
 install
