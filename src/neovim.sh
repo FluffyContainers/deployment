@@ -47,21 +47,21 @@ __command(){
   __run "${status}" -t "${title}" "$@"
 }
 
-# __run [-t "command caption" [-s] [-f "echo_func_name"]] [-a] [-o] command
+# __run [-t "command caption" [-s] [-f "echo_func_name"]] [-a] [-o] [--stream] [--sudo] command
 # -t       - instead of command itself, show the specified text
 # -s       - if provided, command itself would be hidden from the output
 # -f       - if provided, output of function would be displayed in title
 # -a       - attach mode, command would be execute in curent context
 # -o       - always show output of the command
 # --stream - read application line-per-line and proxy output to stdout. In contrary to "-a", output are wrapped. 
+# --sudo   - trying to exeute command under elevated permissions, when required. Forcing "-a" mode for sudo password input 
 # Samples:
 # _test(){
 #  echo "lol" 
 #}
 # __run -s -t "Updating" -f "_test" update_dirs
-# TODO: make it more compact somehow
 __run(){
-  local _default=1 _f="" _silent=0 _show_output=0 _custom_title="" _func="" _attach=0 _stream=0
+  local _default=1 _f="" _silent=0 _show_output=0 _custom_title="" _func="" _attach=0 _stream=0 _sudo=0
 
   # scan for arguments
   while true; do
@@ -71,9 +71,14 @@ __run(){
     [[ "${1^^}" == "-O" ]]       && { _show_output=1; shift; }
     [[ "${1^^}" == "-A" ]]       && { _attach=1; shift; }
     [[ "${1^^}" == "--STREAM" ]] && { _stream=1; shift; }
+    [[ "${1^^}" == "--SUDO" ]]   && { _sudo=1; shift; } 
 
     [[ "${1:0:1}" != "-" ]] && break
   done
+
+  [[ ${_sudo} -eq 1 ]] && { 
+    [[ ${UID} -ne 0 ]] && { _stream=0; _attach=1; _show_output=0; set -- sudo "$@"; } || _sudo=0
+  }
 
   [[ "${DEBUG}" == "1" ]] &&  echo -e "${_COLOR[GRAY]}[DEBUG] $*${_COLOR[RESET]}"
 
@@ -148,7 +153,7 @@ __echo() {
 
 __ask() {
     local _title="${1}"
-    read -rep "${1} (y/N): " answer < /dev/tty
+    [[ -n ${FORCE} ]] && [[ "${FORCE}" == "1" ]] && echo "${1} (y/N): y (env variable)" || read -rep "${1} (y/N): " answer < /dev/tty
     if [[ "${answer}" != "y" ]]; then
       __echo "error" "Action cancelled by the user"
       return 1
@@ -163,7 +168,7 @@ cuu1(){
 # https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
 # Results: 
 #          0 => =
-#          1 => >
+#        1 => >
 #          2 => <
 # shellcheck disable=SC2206
 __vercomp () {
@@ -323,18 +328,18 @@ install_neovim_bin(){
 }
 
 install_fedora(){
-   __run -o --stream dnf install -y gcc git npm
-   if ! __run dnf install -y neovim; then
+   __run --sudo -o --stream dnf install -y gcc git npm
+   if ! __run --sudo dnf install -y neovim; then
      __echo "WARN" "Neovim is not in the repos, installing standalone binary instead..."
-     install_neovim_bin
+     __run --sudo -o --stream install_neovim_bin
    fi 
    __install
 }
 
 
 install_ubuntu(){
-  __run apt update
-  __run -o --stream apt install -y gcc git npm curl
+  __run --sudo apt update
+  __run --sudo -o --stream apt install -y gcc git npm curl
   # Ubuntu installs too old version of neovim, opting to manual install https://github.com/neovim/neovim/blob/master/INSTALL.md
   install_neovim_bin
   __install

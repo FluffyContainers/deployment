@@ -46,21 +46,21 @@ __command(){
   __run "${status}" -t "${title}" "$@"
 }
 
-# __run [-t "command caption" [-s] [-f "echo_func_name"]] [-a] [-o] command
+# __run [-t "command caption" [-s] [-f "echo_func_name"]] [-a] [-o] [--stream] [--sudo] command
 # -t       - instead of command itself, show the specified text
 # -s       - if provided, command itself would be hidden from the output
 # -f       - if provided, output of function would be displayed in title
 # -a       - attach mode, command would be execute in curent context
 # -o       - always show output of the command
 # --stream - read application line-per-line and proxy output to stdout. In contrary to "-a", output are wrapped. 
+# --sudo   - trying to exeute command under elevated permissions, when required. Forcing "-a" mode for sudo password input 
 # Samples:
 # _test(){
 #  echo "lol" 
 #}
 # __run -s -t "Updating" -f "_test" update_dirs
-# TODO: make it more compact somehow
 __run(){
-  local _default=1 _f="" _silent=0 _show_output=0 _custom_title="" _func="" _attach=0 _stream=0
+  local _default=1 _f="" _silent=0 _show_output=0 _custom_title="" _func="" _attach=0 _stream=0 _sudo=0
 
   # scan for arguments
   while true; do
@@ -70,9 +70,14 @@ __run(){
     [[ "${1^^}" == "-O" ]]       && { _show_output=1; shift; }
     [[ "${1^^}" == "-A" ]]       && { _attach=1; shift; }
     [[ "${1^^}" == "--STREAM" ]] && { _stream=1; shift; }
+    [[ "${1^^}" == "--SUDO" ]]   && { _sudo=1; shift; } 
 
     [[ "${1:0:1}" != "-" ]] && break
   done
+
+  [[ ${_sudo} -eq 1 ]] && { 
+    [[ ${UID} -ne 0 ]] && { _stream=0; _attach=1; _show_output=0; set -- sudo "$@"; } || _sudo=0
+  }
 
   [[ "${DEBUG}" == "1" ]] &&  echo -e "${_COLOR[GRAY]}[DEBUG] $*${_COLOR[RESET]}"
 
@@ -147,7 +152,7 @@ __echo() {
 
 __ask() {
     local _title="${1}"
-    read -rep "${1} (y/N): " answer < /dev/tty
+    [[ -n ${FORCE} ]] && [[ "${FORCE}" == "1" ]] && echo "${1} (y/N): y (env variable)" || read -rep "${1} (y/N): " answer < /dev/tty
     if [[ "${answer}" != "y" ]]; then
       __echo "error" "Action cancelled by the user"
       return 1
@@ -162,7 +167,7 @@ cuu1(){
 # https://stackoverflow.com/questions/4023830/how-to-compare-two-strings-in-dot-separated-version-format-in-bash
 # Results: 
 #          0 => =
-#          1 => >
+#        1 => >
 #          2 => <
 # shellcheck disable=SC2206
 __vercomp () {
@@ -215,8 +220,9 @@ APP="tmux"
 
 
 _PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
-_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//')
-_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//')
+_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
+_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
+read -ra _OS_LIKE <<< "$(grep "^ID_LIKE=" /etc/os-release | sed 's/ID_LIKE=//;s/"//g')"
 
 
 declare -A _VARS=(
@@ -226,15 +232,16 @@ declare -A _VARS=(
 
 # shellcheck disable=SC2120
 info_header(){
-    local __inject_rows="${1}"
+    local __inject_rows_func="${1}"
     __echo "------"
     __echo "OS                    : ${_OS_TYPE} ${_OS_VERSION}"
     __echo "Platform              : ${_PLATFORM_TYPE}"
+    __echo "Compatible            : ${_OS_LIKE[*]}"
     __echo "Application           : ${APP}"
     __echo "Base Install Dir      : ${HOME}"
-    if [[ -n "${__inject_rows}" ]]; then
+    if [[ -n "${__inject_rows__func}" ]]; then
     __echo ""
-     ${__inject_rows}
+     ${__inject_rows__func}
     fi
     __echo "------"
 }
@@ -297,13 +304,13 @@ __echo "warn" "Reload shell to apply .bashrc changes or execute "source ~/.bashr
 }
 
 install_fedora(){
-  __run -o --stream dnf install -y tmux git curl
+  __run --sudo -o --stream dnf install -y tmux git curl
   __install
 }
 
 install_ubuntu(){
-    __run apt update
-    __run apt install -y tmux curl git
+    __run --sudo apt update
+    __run --sudo apt install -y tmux curl git
     __install
 }
 
@@ -317,7 +324,21 @@ install(){
   echo -en "You're about to deploy ${APP} on current system. "
   ! __ask "Agree to continue" && return 1
   
-  [[ $(type -t "install_${_OS_TYPE,,}") == function ]] && "install_${_OS_TYPE,,}" || __echo "Unsupported OS Type"
+  if [[ $(type -t "install_${_OS_TYPE,,}") == function ]]; then
+    "install_${_OS_TYPE,,}"
+  else
+    local _found=0
+    for _compatible in "${_OS_LIKE[@]}"; do
+      if [[ $(type -t "install_${_compatible,,}") == function ]]; then
+         __echo "WARN" "\"${_OS_TYPE}\" is not directly supported, executing as compatible with \"${_compatible}\""
+         sleep 2
+         "install_${_compatible,,}"
+         local _found=1
+         break
+      fi
+    done 
+    [[ ${_found} -eq 0 ]] && __echo "ERROR" "Unsupported OS Type"
+  fi
 }
 
 
