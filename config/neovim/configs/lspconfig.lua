@@ -75,7 +75,7 @@ lspconfig.docker_compose_language_service.setup {
 }
 
 
-lspconfig.yamnlls.setup {
+lspconfig.yamlls.setup {
   on_attach = on_attach,
   capabilities = capabilities,
   cmd = { 'yaml-language-server', '--stdio' },
