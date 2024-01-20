@@ -334,7 +334,7 @@ install_fedora(){
 
 install_ubuntu(){
   __run apt update
-  __run -o --stream apt install -y gcc git npm
+  __run -o --stream apt install -y gcc git npm curl
   # Ubuntu installs too old version of neovim, opting to manual install https://github.com/neovim/neovim/blob/master/INSTALL.md
   install_neovim_bin
   __install
@@ -342,6 +342,12 @@ install_ubuntu(){
 
 install_debian(){
     install_ubuntu
+}
+
+install_alpine(){
+    __run apk update
+    __run apk add gcc git npm curl neovim musl-dev
+    __install
 }
 
 
