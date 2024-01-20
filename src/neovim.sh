@@ -321,7 +321,11 @@ install_fedora(){
 
 install_ubuntu(){
   __run apt update
-  __run -o --stream apt install -y gcc git npm neovim
+  __run -o --stream apt install -y gcc git npm
+  # Ubuntu installs too old version of neovim, opting to manual install https://github.com/neovim/neovim/blob/master/INSTALL.md
+  __download https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz /opt/nvim-linux64.tar.gz
+  __run tar xf /opt/nvim-linux64.tar.gz -C /usr/local --strip-components=1
+  __run rm -f /opt/nvim-linux64.tar.gz
   __install
 }
 
