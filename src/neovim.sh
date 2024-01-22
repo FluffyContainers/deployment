@@ -219,9 +219,15 @@ DEPL_CONFIG_URL="${DEPL_MAIN_DOWNLOAD_URL}/config"
 
 
 _PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
-_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
-_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
-read -ra _OS_LIKE <<< "$(grep "^ID_LIKE=" /etc/os-release | sed 's/ID_LIKE=//;s/"//g')"
+[[ -f /etc/os-release ]] && {
+  _OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
+  _OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
+  read -ra _OS_LIKE <<< "$(grep "^ID_LIKE=" /etc/os-release | sed 's/ID_LIKE=//;s/"//g')"
+} || {
+  _OS_TYPE=$(uname)
+  _OS_VERSION=""
+  _OS_LIKE=()
+}
 
 APP="neovim"
 
@@ -353,6 +359,13 @@ install_alpine(){
     __run apk update
     __run apk add gcc git npm curl neovim musl-dev
     __install
+}
+
+install_darwin(){
+    [[ ! -f /opt/homebrew/bin/brew ]] && { __echo "ERROR" "Homebrew not found!"; return 1; }
+
+  brew install neovim git npm gcc
+  __install
 }
 
 

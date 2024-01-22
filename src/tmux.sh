@@ -220,8 +220,13 @@ APP="tmux"
 
 
 _PLATFORM_TYPE="amd64"; [[ ${HOSTTYPE} == "aarch64" ]] && _PLATFORM_TYPE="arm64"
-_OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
-_OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
+[[ -f /etc/os-release ]] && {
+  _OS_TYPE=$(grep "^ID=" /etc/os-release | sed 's/ID=//;s/"//g')
+  _OS_VERSION=$(grep "^VERSION_ID=" /etc/os-release | sed 's/VERSION_ID=//;s/"//g')
+} || {
+  _OS_TYPE=$(uname)
+  _OS_VERSION=""
+}
 read -ra _OS_LIKE <<< "$(grep "^ID_LIKE=" /etc/os-release | sed 's/ID_LIKE=//;s/"//g')"
 
 
@@ -316,6 +321,13 @@ install_ubuntu(){
 
 install_debian(){
     install_ubuntu
+}
+
+install_darwin(){
+  [[ ! -f /opt/homebrew/bin/brew ]] && { __echo "ERROR" "Homebrew not found!"; return 1; }
+
+  brew install tmux git
+  __install
 }
 
 
