@@ -242,6 +242,9 @@ APP="Incus"
 
 __install(){
     __run qemu-img convert /usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2 /usr/share/edk2/ovmf/OVMF_CODE.4MB.fd
+    __run qemu-img convert /usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2 /usr/share/edk2/ovmf/OVMF_VARS.4MB.ms.fd
+    __run qemu-img convert /usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2 /usr/share/edk2/ovmf/OVMF_CODE_4M.ms.fd
+    
     if ! grep "root:1000000:1000000000" /etc/subuid 1>/dev/null 2>&1; then
       __echo "Adding subuid ..."
       echo "root:1000000:1000000000" >> /etc/subuid
@@ -274,7 +277,7 @@ EOF
 install_fedora(){
    __run dnf install -y 'dnf-command(copr)'
    __run dnf copr enable -y ganto/lxc4
-   __run dnf install -y incus
+   __run dnf install -y incus binutils
    __install
 }
 
