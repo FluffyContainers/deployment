@@ -308,3 +308,5 @@ install(){
     [[ ${_found} -eq 0 ]] && __echo "ERROR" "Unsupported OS Type"
   fi
 }
+
+install
