@@ -269,6 +269,7 @@ What next:
   - lvcreate -L1TB -ndata slow 
   - incus storage create lvm-slow lvm source=slow lvm.vg.force_reuse=true lvm.use_thinpool=true lvm.thinpool_name=incus-pool
 - start first vm -> incus launch images:fedora/39 test --vm
+- add new client-> incus config trust add
 
 EOF
 
