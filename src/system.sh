@@ -224,6 +224,8 @@ install(){
   echo -en "${_COLOR[ERROR]}You're about to deploy System base conf on current system. ${_COLOR[RESET]}"
   ! __ask "Agree to continue" && return 1
 
+  __run timedatectl set-ntp true
+
   # suppress fd leaks messsages 
   __echo "Updating environment and profile to suppress LVM FD Leaks warnings"
   echo "export LVM_SUPPRESS_FD_WARNINGS=1" >> /etc/environment
