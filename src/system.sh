@@ -232,7 +232,7 @@ install(){
   echo "export LVM_SUPPRESS_FD_WARNINGS=1" >> /etc/profile
 
   __download "${__SYSTEM_DOWLOAD_URL}/sysctl.d/system.conf" "/etc/sysctl.d/system.conf"
-  __download "${__SYSTEM_DOWLOAD_URL}/dev/10-persistent-net.rules" "/etc/udev/rules.d/10-persistent-net.rules"
+  __download "${__SYSTEM_DOWLOAD_URL}/udev/10-persistent-net.rules" "/etc/udev/rules.d/10-persistent-net.rules"
 }
 
 install
