@@ -310,6 +310,9 @@ __install(){
    __run rm -rf ~/.local/share/nvim
    __run rm -rf "${HOME}/.config/nvim"
    __run git clone https://github.com/NvChad/NvChad "${HOME}/.config/nvim" --depth 1
+   __run git clone https://github.com/NvChad/starter "${HOME}/.config/nvim_starter" --depth 1
+   __run cp -rf "${HOME}/.config/nvim_starter/*" "${HOME}/.config/nvim/"
+   __run rm -rf "${HOME}/.config/nvim_starter"
    __run mkdir -p ~/.config/nvim/lua/custom/configs
 
    for file in "${DOWNLOAD_FILES[@]}"; do
